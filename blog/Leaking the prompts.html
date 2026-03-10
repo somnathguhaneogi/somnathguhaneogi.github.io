@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEAKING THE PROMPT: 10 Critical Rules for Using Public AI in Client Pentests</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:        #030507;
+  --bg2:       #070d0f;
+  --surface:   #0b1417;
+  --surface2:  #0f1c20;
+  --border:    #152028;
+  --border2:   #1e3040;
+  --green:     #00ff88;
+  --green-dim: #00c96a;
+  --green-faint: rgba(0,255,136,0.07);
+  --teal:      #0dd3d3;
+  --amber:     #ffb347;
+  --red:       #ff4560;
+  --blue:      #38bdf8;
+  --text:      #d4e8e0;
+  --muted:     #4a7060;
+  --muted2:    #2a4535;
+  --mono:      'JetBrains Mono', monospace;
+  --serif:     'Crimson Pro', serif;
+  --display:   'Bebas Neue', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.75;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* CUSTOM CURSOR */
+#cursor { width: 8px; height: 8px; background: var(--green); border-radius: 50%; position: fixed; pointer-events: none; z-index: 10000; transition: transform 0.15s ease, opacity 0.3s; mix-blend-mode: screen; }
+#cursor-ring { width: 32px; height: 32px; border: 1px solid rgba(0,255,136,0.4); border-radius: 50%; position: fixed; pointer-events: none; z-index: 9999; transition: all 0.3s cubic-bezier(0.23,1,0.32,1); mix-blend-mode: screen; }
+
+/* MATRIX RAIN */
+#matrix-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.025; pointer-events: none; z-index: 0; }
+
+/* PROGRESS */
+#progress { position: fixed; top: 0; left: 0; height: 2px; background: linear-gradient(90deg, var(--green), var(--teal)); z-index: 1000; width: 0%; transition: width 0.08s linear; box-shadow: 0 0 12px var(--green); }
+
+/* HEADER */
+header { position: relative; min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; align-items: end; padding: 0 7vw 8vh; overflow: hidden; z-index: 1; }
+.header-glow { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 50% at 30% 60%, rgba(0,255,136,0.05) 0%, transparent 60%), radial-gradient(ellipse 40% 40% at 80% 20%, rgba(13,211,211,0.04) 0%, transparent 50%); pointer-events: none; }
+.header-scanlines { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,255,136,0.01) 3px, rgba(0,255,136,0.01) 4px); pointer-events: none; }
+.header-left { position: relative; z-index: 2; padding-bottom: 2rem; }
+.header-right { position: relative; z-index: 2; padding-bottom: 2rem; padding-left: 4rem; }
+
+/* PROMPT DIAGRAM */
+.prompt-diagram { opacity: 0; animation: fadeIn 1s 1.2s ease forwards; }
+.prompt-segment { margin-bottom: 0.5rem; display: flex; flex-direction: column; gap: 0.25rem; }
+.prompt-label { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 0.2rem; }
+.prompt-value { font-family: var(--mono); font-size: 0.7rem; padding: 0.6rem 1rem; word-break: break-all; line-height: 1.6; position: relative; overflow: hidden; }
+.prompt-value::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; }
+.seg-input .prompt-label { color: var(--amber); }
+.seg-input .prompt-value { background: rgba(255,179,71,0.08); border: 1px solid rgba(255,179,71,0.2); color: #ffcf80; }
+.seg-input .prompt-value::before { background: var(--amber); }
+.seg-ai .prompt-label { color: var(--teal); }
+.seg-ai .prompt-value { background: rgba(13,211,211,0.08); border: 1px solid rgba(13,211,211,0.2); color: #80f0ff; }
+.seg-ai .prompt-value::before { background: var(--teal); }
+.seg-leak .prompt-label { color: var(--red); }
+.seg-leak .prompt-value { background: rgba(255,69,96,0.08); border: 1px solid rgba(255,69,96,0.2); color: #ff8fa0; }
+.seg-leak .prompt-value::before { background: var(--red); }
+.prompt-connector { text-align: center; font-family: var(--mono); font-size: 1.5rem; color: var(--muted); margin: -0.1rem 0; line-height: 1; }
+
+/* TYPOGRAPHY */
+.eyebrow { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--green); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem; opacity: 0; animation: fadeUp 0.6s 0.2s ease forwards; }
+.eyebrow-line { width: 32px; height: 1px; background: var(--green); }
+.eyebrow-tag { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.25); padding: 0.2rem 0.75rem; border-radius: 1px; }
+
+h1 { font-family: var(--display); font-size: clamp(3.5rem, 6.5vw, 7.5rem); line-height: 0.95; letter-spacing: 0.02em; color: var(--text); margin-bottom: 2rem; opacity: 0; animation: fadeUp 0.9s 0.4s ease forwards; }
+h1 .accent { color: var(--green); }
+h1 .dim { color: var(--muted); }
+
+.header-desc { font-size: 1.05rem; color: #7aaa90; line-height: 1.7; max-width: 480px; margin-bottom: 2.5rem; opacity: 0; animation: fadeUp 0.7s 0.6s ease forwards; }
+
+.header-meta { display: flex; flex-wrap: wrap; gap: 1.5rem; opacity: 0; animation: fadeUp 0.6s 0.8s ease forwards; }
+.meta-chip { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid var(--border2); padding: 0.3rem 0.8rem; background: var(--surface); }
+
+/* LAYOUT */
+.wrapper { max-width: 1180px; margin: 0 auto; padding: 0 7vw; position: relative; z-index: 1; }
+.content-grid { display: grid; grid-template-columns: 1fr 260px; gap: 5rem; align-items: start; }
+
+/* TOC */
+.toc-box { position: sticky; top: 5rem; background: var(--surface); border: 1px solid var(--border2); overflow: hidden; }
+.toc-head { background: var(--surface2); border-bottom: 1px solid var(--border2); padding: 0.75rem 1.25rem; font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--green); display: flex; align-items: center; gap: 0.75rem; }
+.toc-head::before { content: '▶'; font-size: 0.5rem; }
+.toc-nav a { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1.25rem; font-family: var(--mono); font-size: 0.68rem; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.2s; }
+.toc-nav a:hover, .toc-nav a.active { color: var(--green); border-left-color: var(--green); background: var(--green-faint); }
+.toc-index { font-size: 0.58rem; color: var(--muted2); min-width: 1.2rem; }
+
+/* SECTIONS */
+.section { margin-bottom: 5rem; scroll-margin-top: 4.5rem; }
+.section-badge { display: inline-flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem; }
+.badge-id { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.15em; background: var(--surface2); border: 1px solid var(--border2); padding: 0.35rem 0.9rem; color: var(--muted); }
+.badge-sev { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.35rem 0.9rem; font-weight: 600; }
+.crit { background: rgba(255,69,96,0.12); border: 1px solid rgba(255,69,96,0.3); color: var(--red); }
+.high { background: rgba(255,179,71,0.1); border: 1px solid rgba(255,179,71,0.3); color: var(--amber); }
+.med  { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--blue); }
+
+.section-title { font-family: var(--display); font-size: clamp(2rem, 3.5vw, 3.2rem); letter-spacing: 0.03em; line-height: 1; color: var(--text); margin-bottom: 0.75rem; }
+.section-sub { font-size: 1rem; color: #5a8870; max-width: 640px; line-height: 1.7; margin-bottom: 2.5rem; font-weight: 300; }
+
+.lead { font-size: 1.25rem; font-weight: 300; color: #a0c8b0; line-height: 1.7; border-left: 2px solid var(--green); padding-left: 1.75rem; margin-bottom: 2rem; font-style: italic; }
+p { font-size: 1rem; color: #7aaa90; line-height: 1.85; margin-bottom: 1.25rem; font-weight: 300; }
+strong { color: var(--text); font-weight: 600; }
+
+/* DIVIDER */
+.divider { display: flex; align-items: center; gap: 1rem; margin: 4rem 0; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--border2)); }
+.divider::after { background: linear-gradient(90deg, var(--border2), transparent); }
+.divider-icon { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.2em; white-space: nowrap; }
+
+/* CODE BLOCK */
+.code-block { background: #020507; border: 1px solid var(--border2); margin: 2rem 0; overflow-x: auto; position: relative; }
+.code-bar { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1.25rem; background: var(--surface2); border-bottom: 1px solid var(--border2); }
+.code-lang { font-family: var(--mono); font-size: 0.6rem; color: var(--green); text-transform: uppercase; letter-spacing: 0.15em; }
+.code-body { padding: 1.5rem 1.75rem; font-family: var(--mono); font-size: 0.76rem; line-height: 2.0; color: #5a8870; }
+.t-comment { color: #2a5040; font-style: italic; }
+.t-keyword { color: #c678dd; }
+.t-string  { color: #98c379; }
+.t-func    { color: var(--green); }
+.t-var     { color: #e06c75; }
+.t-num     { color: var(--amber); }
+.t-key     { color: var(--teal); }
+.t-header  { color: var(--red); }
+.t-output  { color: var(--amber); }
+
+/* CALL OUT */
+.callout { display: flex; gap: 1.25rem; padding: 1.25rem 1.5rem; margin: 2rem 0; border: 1px solid; position: relative; }
+.callout::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; }
+.callout-crit { background: rgba(255,69,96,0.05); border-color: rgba(255,69,96,0.2); }
+.callout-crit::before { background: var(--red); }
+.callout-warn { background: rgba(255,179,71,0.05); border-color: rgba(255,179,71,0.2); }
+.callout-warn::before { background: var(--amber); }
+.callout-tip  { background: var(--green-faint); border-color: rgba(0,255,136,0.18); }
+.callout-tip::before  { background: var(--green); }
+.callout-icon { font-size: 0.9rem; flex-shrink: 0; padding-top: 0.15rem; }
+.callout-text { font-size: 0.88rem; line-height: 1.7; font-family: var(--serif); font-weight: 300; }
+.callout-crit .callout-text { color: #ffa0b0; }
+.callout-warn .callout-text { color: #ffd090; }
+.callout-tip  .callout-text { color: #80e8b0; }
+
+/* FOOTER */
+footer { position: relative; z-index: 1; border-top: 1px solid var(--border2); padding: 3rem 7vw; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 6rem; }
+.footer-id { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em; }
+.footer-links { display: flex; gap: 2.5rem; list-style: none; }
+.footer-links a { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); text-decoration: none; text-transform: uppercase; letter-spacing: 0.12em; transition: color 0.2s; }
+.footer-links a:hover { color: var(--green); }
+
+/* ANIMATIONS */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal.vis { opacity: 1; transform: none; }
+
+/* RESPONSIVE */
+@media (max-width: 960px) {
+  header { grid-template-columns: 1fr; padding-bottom: 5vh; }
+  .header-right { display: none; }
+  .content-grid { grid-template-columns: 1fr; }
+  .toc-box { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+<canvas id="matrix-canvas"></canvas>
+<div id="progress"></div>
+
+<header>
+  <div class="header-glow"></div>
+  <div class="header-scanlines"></div>
+
+  <div class="header-left">
+    <div class="eyebrow">
+      <div class="eyebrow-line"></div>
+      <span class="eyebrow-tag">AI OPSEC</span>
+      Penetration Testing
+    </div>
+
+    <h1>
+      LEAKING<br>
+      THE <span class="accent">PROMPT</span><br>
+      <span class="dim">///</span>
+    </h1>
+
+    <p class="header-desc">
+      Public AI (ChatGPT, Gemini, Claude, Grok…) is the fastest way to supercharge your pentests — until one careless paste gets you fired, sued, or blacklisted. Here are the 10 rules that separate professionals from headlines.
+    </p>
+
+    <div class="header-meta">
+      <span class="meta-chip">18 min read</span>
+      <span class="meta-chip">10 Critical Rules</span>
+      <span class="meta-chip">Real 2023-2025 Breaches</span>
+      <span class="meta-chip">OWASP LLM Top 10</span>
+    </div>
+  </div>
+
+  <div class="header-right">
+    <div class="prompt-diagram">
+      <div class="prompt-segment seg-input">
+        <div class="prompt-label">// YOUR PROMPT</div>
+        <div class="prompt-value">Here is the real client JWT from Burp + internal endpoint https://app.client.corp/api/v3...</div>
+      </div>
+      <div class="prompt-connector">↓ sent to</div>
+      <div class="prompt-segment seg-ai">
+        <div class="prompt-label">// PUBLIC LLM CLOUD</div>
+        <div class="prompt-value">ChatGPT / Gemini / Claude / Grok</div>
+      </div>
+      <div class="prompt-connector">↓ stored / trained on / leaked via</div>
+      <div class="prompt-segment seg-leak">
+        <div class="prompt-label">// EXPOSURE SURFACE</div>
+        <div class="prompt-value">Training data • Logs • Support tickets • History • Screenshots</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrapper" style="padding-top:8rem">
+<div class="content-grid">
+
+<article>
+
+<section class="section reveal" id="intro">
+  <p class="lead">
+    Public LLMs have become standard in every red team and pentest workflow. They help craft payloads, explain complex vulns, generate reports, and even debug code in seconds. 
+    But they are also the fastest route to an accidental data breach that can end careers and engagements.
+  </p>
+  <p>
+    Every week we hear of new incidents: consultants pasting real JWTs, API keys, Burp exports, internal screenshots, and live endpoints into ChatGPT, Gemini, Claude or Grok. 
+    The data leaves your machine forever — stored for training, visible to support staff, or later regurgitated by the model.
+  </p>
+  <p>
+    This guide gives you the complete, battle-tested 10-rule framework used by professional red teams to use public AI without ever risking client data.
+  </p>
+</section>
+
+<div class="divider"><span class="divider-icon">// RULE SET v1.0</span></div>
+
+<section class="section reveal" id="rule-01">
+  <div class="section-badge">
+    <span class="badge-id">AI-01</span>
+    <span class="badge-sev crit">CRITICAL</span>
+  </div>
+  <div class="section-title">Rule 01 – Never paste real secrets, tokens, keys, passwords or credentials</div>
+  <p class="section-sub">One single JWT, API key, or password in any public LLM = material data breach under GDPR / CCPA.</p>
+
+  <p>
+    The moment you hit send, the secret is logged, stored for 30–90 days (or longer), and in some cases added to training data. 
+    Even if you delete the chat, the provider may still retain it. Attackers have already extracted real credentials from public model training dumps.
+  </p>
+
+  <div class="flow-diagram">
+    <div class="flow-title">// RISK FLOW – Secret Leak</div>
+    <div class="flow-steps" style="flex-wrap:wrap;gap:8px">
+      <div class="flow-step"><div class="flow-box">Paste real JWT</div><div class="flow-label">baseline</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box attack">AI stores it</div><div class="flow-label">logs + training</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box attack">Model regurgitates later</div><div class="flow-label">or public dump</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><div class="flow-box success">Client breach</div><div class="flow-label">🔴 career end</div></div>
+    </div>
+  </div>
+
+  <div class="code-block">
+    <div class="code-bar"><span class="code-lang">BAD EXAMPLE</span></div>
+    <div class="code-body">
+<span class="t-comment">// NEVER paste this</span>
+Analyze this JWT from https://bank.client.com:
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6OTk5OTk5OTk5OX0...
+    </div>
+  </div>
+
+  <div class="callout callout-crit">
+    <span class="callout-icon">🔴</span>
+    <div class="callout-text">
+      <strong>Real case (2024):</strong> A senior pentester at a Big-4 firm pasted a client’s production API key into ChatGPT to “debug rate limiting”. The key later appeared in a public training data leak. Client suffered fraud losses and sued. The consultant was terminated and the firm paid $2.3M settlement.
+    </div>
+  </div>
+
+  <p><strong>Safe alternative:</strong> Use dummy values like “eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy…” or describe the structure only.</p>
+</section>
+
+<section class="section reveal" id="rule-02">
+  <div class="section-badge">
+    <span class="badge-id">AI-02</span>
+    <span class="badge-sev crit">CRITICAL</span>
+  </div>
+  <div class="section-title">Rule 02 – Never upload screenshots containing real UI, domains, internal data or error messages</div>
+  <p class="section-sub">Even blurred or cropped images can be reconstructed by modern vision models.</p>
+
+  <p>
+    Modern LLMs with vision (GPT-4o, Claude-3.5, Gemini 1.5) can read text from screenshots. Internal hostnames, GUIDs, error stacks, and even blurred tokens are often recoverable.
+  </p>
+
+  <div class="callout callout-crit">
+    <span class="callout-icon">🔴</span>
+    <div class="callout-text">
+      <strong>Real case (2025):</strong> A red teamer uploaded a blurred Burp screenshot of an internal banking app. The model correctly extracted the internal domain and a partial JWT. Client’s OSINT team discovered their own subdomain in public AI conversation archives.
+    </div>
+  </div>
+
+  <p><strong>Safe:</strong> Use text descriptions or create clean mockups in draw.io / Excalidraw.</p>
+</section>
+
+<section class="section reveal" id="rule-03">
+  <div class="section-badge">
+    <span class="badge-id">AI-03</span>
+    <span class="badge-sev high">HIGH</span>
+  </div>
+  <div class="section-title">Rule 03 – Always fully anonymize / pseudonymize EVERY piece of data</div>
+  <p class="section-sub">Replace real domains, IPs, usernames, company names, and internal IDs before sending.</p>
+
+  <p>
+    Even “example.com” can be dangerous if you include enough context. Real-life mistake: pentesters replaced “bank.com” with “example.com” but left the exact path and parameter names — enough for the client to identify themselves during a later AI audit.
+  </p>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-text">
+      <strong>Real case (2024):</strong> Consultant used “acme-bank.internal” in a prompt. The model later suggested payloads using that exact string. Client’s security team found the conversation via their own brand monitoring and terminated the engagement.
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="rule-04">
+  <div class="section-badge">
+    <span class="badge-id">AI-04</span>
+    <span class="badge-sev high">HIGH</span>
+  </div>
+  <div class="section-title">Rule 04 – Only use enterprise / private / zero-retention instances (or local models)</div>
+  <p class="section-sub">Free/public tiers log everything for training. Enterprise plans with zero data retention are the minimum.</p>
+
+  <p>
+    Samsung’s 2023 incident started exactly here: employees using the free ChatGPT tier. The company banned it after source code and meeting notes were found in training data.
+  </p>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-text">
+      <strong>Real case (2023-2024):</strong> Samsung banned ChatGPT company-wide after three separate incidents where employees pasted proprietary code and internal meeting notes.
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="rule-05">
+  <div class="section-badge">
+    <span class="badge-id">AI-05</span>
+    <span class="badge-sev high">HIGH</span>
+  </div>
+  <div class="section-title">Rule 05 – Never ask AI to write full exploit code for real in-scope assets</div>
+  <p class="section-sub">Describe the vulnerability class generically — never include live URLs, parameters, or tokens.</p>
+
+  <p>
+    Real mistake: Pentester asked “Write a Python exploit for this exact endpoint https://target.com/api/v3/admin?user=...” — the model generated working code that was later found in public GitHub repos indexed by the client.
+  </p>
+</section>
+
+<section class="section reveal" id="rule-06">
+  <div class="section-badge">
+    <span class="badge-id">AI-06</span>
+    <span class="badge-sev med">MEDIUM</span>
+  </div>
+  <div class="section-title">Rule 06 – Never generate final reports, findings, or deliverables with public AI</div>
+  <p class="section-sub">Clients now run AI detectors. Perceived lack of professionalism can kill future contracts.</p>
+
+  <div class="callout callout-warn">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-text">
+      <strong>Real case (2025):</strong> A boutique pentest firm submitted an AI-generated report. Client ran it through multiple detectors, questioned the entire engagement, and refused payment.
+    </div>
+  </div>
+</section>
+
+<section class="section reveal" id="rule-07">
+  <div class="section-badge">
+    <span class="badge-id">AI-07</span>
+    <span class="badge-sev high">HIGH</span>
+  </div>
+  <div class="section-title">Rule 07 – Delete every conversation immediately after use</div>
+  <p class="section-sub">Even “temporary chat” modes are stored for weeks. Shared accounts multiply the risk.</p>
+</section>
+
+<section class="section reveal" id="rule-08">
+  <div class="section-badge">
+    <span class="badge-id">AI-08</span>
+    <span class="badge-sev high">HIGH</span>
+  </div>
+  <div class="section-title">Rule 08 – Prefer fully local / offline models for anything even remotely sensitive</div>
+  <p class="section-sub">Ollama + Llama 3.1 70B, Qwen2.5-Coder, DeepSeek-Coder-V2, Gemma 2, or Phi-4 — zero data ever leaves your laptop.</p>
+</section>
+
+<section class="section reveal" id="rule-09">
+  <div class="section-badge">
+    <span class="badge-id">AI-09</span>
+    <span class="badge-sev high">HIGH</span>
+  </div>
+  <div class="section-title">Rule 09 – Never feed live endpoints, real HTTP responses, or full Burp captures</div>
+  <p class="section-sub">Even 403/401 responses often contain internal server headers, stack traces, GUIDs, and version info.</p>
+</section>
+
+<section class="section reveal" id="rule-10">
+  <div class="section-badge">
+    <span class="badge-id">AI-10</span>
+    <span class="badge-sev high">HIGH</span>
+  </div>
+  <div class="section-title">Rule 10 – Always document AI usage and obtain explicit client approval in the SOW / RoE</div>
+  <p class="section-sub">Add a one-line clause: “Limited use of anonymized queries against approved enterprise AI instances with zero data retention”.</p>
+
+  <div class="callout callout-tip">
+    <span class="callout-icon">✅</span>
+    <div class="callout-text">
+      Most professional firms now include this exact clause. It protects both you and the client.
+    </div>
+  </div>
+</section>
+
+<div class="divider"><span class="divider-icon">// QUICK CHECKLIST</span></div>
+
+<section class="section reveal" id="checklist">
+  <div class="section-title">10 Rules – Executive Checklist</div>
+  <div style="margin:2rem 0; font-family:var(--mono); font-size:0.92rem; line-height:2.2; color:#80e8b0;">
+    <strong>☐</strong> 01 – No real secrets / tokens / creds<br>
+    <strong>☐</strong> 02 – No screenshots with real data<br>
+    <strong>☐</strong> 03 – Full anonymization of all context<br>
+    <strong>☐</strong> 04 – Enterprise / zero-retention only<br>
+    <strong>☐</strong> 05 – Generic vuln class only (no live targets)<br>
+    <strong>☐</strong> 06 – No final reports or deliverables<br>
+    <strong>☐</strong> 07 – Delete every conversation immediately<br>
+    <strong>☐</strong> 08 – Local offline models for sensitive work<br>
+    <strong>☐</strong> 09 – No live endpoints or full captures<br>
+    <strong>☐</strong> 10 – Written client approval in SOW/RoE
+  </div>
+</section>
+
+</article>
+
+<aside>
+  <nav class="toc-box">
+    <div class="toc-head">CONTENTS</div>
+    <div class="toc-nav">
+      <a href="#intro"><span class="toc-index">00</span> Introduction</a>
+      <a href="#rule-01"><span class="toc-index">01</span> Rule 01 – No real secrets</a>
+      <a href="#rule-02"><span class="toc-index">02</span> Rule 02 – No screenshots</a>
+      <a href="#rule-03"><span class="toc-index">03</span> Rule 03 – Full anonymization</a>
+      <a href="#rule-04"><span class="toc-index">04</span> Rule 04 – Enterprise only</a>
+      <a href="#rule-05"><span class="toc-index">05</span> Rule 05 – No real exploits</a>
+      <a href="#rule-06"><span class="toc-index">06</span> Rule 06 – No final reports</a>
+      <a href="#rule-07"><span class="toc-index">07</span> Rule 07 – Delete chats</a>
+      <a href="#rule-08"><span class="toc-index">08</span> Rule 08 – Prefer local models</a>
+      <a href="#rule-09"><span class="toc-index">09</span> Rule 09 – No live endpoints</a>
+      <a href="#rule-10"><span class="toc-index">10</span> Rule 10 – Client approval</a>
+      <a href="#checklist"><span class="toc-index">11</span> Checklist</a>
+    </div>
+  </nav>
+</aside>
+
+</div>
+</div>
+
+<footer>
+  <div class="footer-id">AI_PENTEST_OPSEC_GUIDE // v1.0 // MARCH 2025</div>
+  <ul class="footer-links">
+    <li><a href="https://owasp.org/www-project-top-10-for-large-language-model-applications/" target="_blank">OWASP LLM Top 10</a></li>
+    <li><a href="https://ollama.com" target="_blank">Ollama (Local LLMs)</a></li>
+    <li><a href="https://github.com/OWASP/llm-top-10" target="_blank">OWASP LLM Project</a></li>
+  </ul>
+</footer>
+
+<script>
+// CUSTOM CURSOR
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx - 4 + 'px';
+  cursor.style.top  = my - 4 + 'px';
+});
+function animRing() {
+  rx += (mx - rx - 16) * 0.12;
+  ry += (my - ry - 16) * 0.12;
+  ring.style.left = rx + 'px';
+  ring.style.top  = ry + 'px';
+  requestAnimationFrame(animRing);
+}
+animRing();
+
+// MATRIX RAIN
+const canvas = document.getElementById('matrix-canvas');
+const ctx = canvas.getContext('2d');
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+const cols = Math.floor(window.innerWidth / 18);
+const drops = Array(cols).fill(1);
+const chars = '01アイウエオカキクケコAI🤖PROMPTLEAK{}[]<>CHATGPTGEMINICLAUDEGROK';
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(3,5,7,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#00ff88';
+  ctx.font = '13px JetBrains Mono, monospace';
+  drops.forEach((y, i) => {
+    const ch = chars[Math.floor(Math.random() * chars.length)];
+    ctx.fillText(ch, i * 18, y * 18);
+    if (y * 18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  });
+}
+setInterval(drawMatrix, 60);
+
+// PROGRESS
+window.addEventListener('scroll', () => {
+  const pct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) * 100;
+  document.getElementById('progress').style.width = pct + '%';
+});
+
+// REVEAL
+const revealObs = new IntersectionObserver(entries => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) setTimeout(() => e.target.classList.add('vis'), i * 60);
+  });
+}, { threshold: 0.08 });
+document.querySelectorAll('.reveal').forEach(el => revealObs.observe(el));
+
+// TOC ACTIVE
+const sections = document.querySelectorAll('.section[id]');
+const tocLinks = document.querySelectorAll('.toc-nav a');
+const tocObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocLinks.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector(`.toc-nav a[href="#${e.target.id}"]`);
+      if (a) a.classList.add('active');
+    }
+  });
+}, { threshold: 0.4 });
+sections.forEach(s => tocObs.observe(s));
+</script>
+</body>
+</html>
