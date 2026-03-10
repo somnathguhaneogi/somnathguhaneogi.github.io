@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coming Soon | Som's AppSec Hub</title>
+<title>AppSec Blog | Som's Knowledge Hub</title>
 
 <style>
 
@@ -35,55 +35,70 @@ body{
     margin-left:25px;
     text-decoration:none;
     color:#cbd5f5;
-    font-size:15px;
 }
 
 .nav-links a:hover{
     color:#38bdf8;
 }
 
-/* Center Section */
+/* Header */
 
-.main{
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    height:80vh;
+.header{
     text-align:center;
+    padding:70px 20px;
 }
 
-.main h1{
-    font-size:48px;
-    margin-bottom:10px;
+.header h1{
+    font-size:42px;
 }
 
-.main p{
-    font-size:20px;
+/* Blog cards */
+
+.section{
+    padding:40px;
+}
+
+.blog-grid{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:30px;
+}
+
+.blog-card{
+    background:#020617;
+    border:1px solid #1e293b;
+    border-radius:10px;
+    padding:25px;
+    width:300px;
+    transition:0.3s;
+}
+
+.blog-card:hover{
+    transform:translateY(-5px);
+    border-color:#38bdf8;
+}
+
+.blog-card h3{
+    margin-top:0;
+}
+
+.blog-card p{
     color:#94a3b8;
 }
 
-.home-btn{
-    margin-top:30px;
-    padding:12px 25px;
-    background:#38bdf8;
-    border:none;
-    color:white;
-    font-size:16px;
-    border-radius:6px;
-    cursor:pointer;
-}
-
-.home-btn:hover{
-    background:#0284c7;
+.blog-card a{
+    text-decoration:none;
+    color:#38bdf8;
 }
 
 /* Footer */
 
 .footer{
     text-align:center;
-    padding:20px;
+    padding:25px;
     border-top:1px solid #1e293b;
+    margin-top:40px;
     color:#64748b;
 }
 
@@ -96,27 +111,56 @@ body{
 <!-- Navbar -->
 
 <div class="navbar">
-    <div class="logo">Som AppSec Hub</div>
 
-    <div class="nav-links">
-        <a href="/">Home</a>
-        <a href="/blog/">Blog</a>
-        <a href="/videos/">Videos</a>
-        <a href="/docs/">Docs</a>
-    </div>
+<div class="logo">Som AppSec Hub</div>
+
+<div class="nav-links">
+<a href="/">Home</a>
+<a href="/blog/">Blog</a>
+<a href="/videos/">Videos</a>
+<a href="/docs/">Docs</a>
 </div>
 
-<!-- Coming Soon Section -->
+</div>
 
-<div class="main">
+<!-- Page Header -->
 
-<h1>🚧 Coming up...</h1>
+<div class="header">
+<h1>Application Security Blog</h1>
+<p>Research, writeups and insights on AppSec and AI security</p>
+</div>
 
-<p>Stay tuned. Exciting AppSec content is on the way.</p>
+<!-- Blog List -->
 
-<button class="home-btn" onclick="location.href='/'">
-Back to Home
-</button>
+<div class="section">
+
+<div class="blog-grid">
+
+<div class="blog-card">
+<h3>AI Pentesting Attack Surface</h3>
+<p>Understanding new vulnerabilities introduced by AI-powered applications.</p>
+<a href="ai-pentesting.html">Read Article →</a>
+</div>
+
+<div class="blog-card">
+<h3>Prompt Injection Explained</h3>
+<p>How attackers manipulate LLM prompts and how to defend against it.</p>
+<a href="prompt-injection.html">Read Article →</a>
+</div>
+
+<div class="blog-card">
+<h3>JWT Security Testing Guide</h3>
+<p>A practical methodology to test JWT authentication vulnerabilities.</p>
+<a href="jwt-security.html">Read Article →</a>
+</div>
+
+<div class="blog-card">
+<h3>Mobile SDK Security Review</h3>
+<p>Checklist for assessing third-party SDKs integrated in mobile apps.</p>
+<a href="mobile-sdk-testing.html">Read Article →</a>
+</div>
+
+</div>
 
 </div>
 
