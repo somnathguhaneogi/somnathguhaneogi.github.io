@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDK Under the Microscope — Hands-On Checklist for Assessing Third-Party SDKs in Mobile Apps</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --ink:       #020c18;
+  --ink2:      #040f1f;
+  --panel:     #071628;
+  --panel2:    #0a1e35;
+  --panel3:    #0d2540;
+  --line:      #0e2a47;
+  --line2:     #143860;
+  --ice:       #a8d4f5;
+  --ice-dim:   #6aaee8;
+  --ice-glow:  rgba(168,212,245,0.07);
+  --ice-faint: rgba(168,212,245,0.04);
+  --white:     #e8f4ff;
+  --cyan:      #38f5e8;
+  --cyan-dim:  rgba(56,245,232,0.12);
+  --red:       #ff4d6d;
+  --red-dim:   rgba(255,77,109,0.1);
+  --orange:    #ff9a3c;
+  --orange-dim:rgba(255,154,60,0.1);
+  --green:     #3dffa0;
+  --green-dim: rgba(61,255,160,0.08);
+  --muted:     #2a4d6e;
+  --muted2:    #163250;
+  --mono:      'Space Mono', monospace;
+  --serif:     'Source Serif 4', serif;
+  --display:   'Barlow Condensed', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ink);
+  color: var(--ice);
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.8;
+  overflow-x: hidden;
+}
+
+/* ── BLUEPRINT GRID ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(168,212,245,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,212,245,0.025) 1px, transparent 1px),
+    linear-gradient(rgba(168,212,245,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(168,212,245,0.012) 1px, transparent 1px);
+  background-size: 80px 80px, 80px 80px, 16px 16px, 16px 16px;
+  pointer-events: none;
+}
+
+/* ── CORNER MARKS ── */
+body::after {
+  content: '';
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--cyan), var(--ice), var(--cyan));
+  background-size: 200% 100%;
+  animation: sweep 4s linear infinite;
+  z-index: 1000;
+}
+@keyframes sweep { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── PROGRESS ── */
+#prog {
+  position: fixed; top: 3px; left: 0; height: 2px;
+  background: rgba(56,245,232,0.6);
+  z-index: 1001; width: 0%;
+  box-shadow: 0 0 8px var(--cyan);
+  transition: width 0.1s linear;
+}
+
+/* ══════════════════ HEADER ══════════════════ */
+header {
+  position: relative; z-index: 2;
+  min-height: 100vh;
+  padding: 0 7vw;
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  align-items: center;
+  gap: 4rem;
+  overflow: hidden;
+}
+
+/* schematic mobile outline */
+.schematic {
+  position: relative;
+  opacity: 0;
+  animation: fadeIn 1.2s 0.6s ease forwards;
+}
+
+.sch-title {
+  font-family: var(--mono); font-size: 0.55rem;
+  text-transform: uppercase; letter-spacing: 0.2em;
+  color: var(--muted); margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.sch-title::before { content: ''; flex: 0 0 20px; height: 1px; background: var(--line2); }
+
+.sch-frame {
+  border: 1px solid var(--line2);
+  background: var(--ink2);
+  padding: 1.5rem;
+  position: relative;
+}
+
+/* corner decorators */
+.sch-frame::before, .sch-frame::after,
+.sch-inner::before, .sch-inner::after {
+  content: '';
+  position: absolute;
+  width: 12px; height: 12px;
+  border-color: var(--ice-dim);
+  border-style: solid;
+}
+.sch-frame::before  { top: -1px;    left: -1px;  border-width: 1px 0 0 1px; }
+.sch-frame::after   { top: -1px;    right: -1px; border-width: 1px 1px 0 0; }
+.sch-inner::before  { bottom: -1px; left: -1px;  border-width: 0 0 1px 1px; }
+.sch-inner::after   { bottom: -1px; right: -1px; border-width: 0 1px 1px 0; }
+.sch-inner { position: relative; }
+
+.sch-phone {
+  border: 1px solid var(--line2);
+  border-radius: 18px;
+  padding: 0.75rem;
+  background: var(--panel);
+  margin-bottom: 1.5rem;
+  position: relative; overflow: hidden;
+}
+
+.sch-phone::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  animation: scanH 3s ease-in-out infinite;
+}
+@keyframes scanH {
+  0%   { transform: translateY(0); opacity: 1; }
+  80%  { transform: translateY(180px); opacity: 0.5; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+
+.notch {
+  width: 50px; height: 8px; border-radius: 4px;
+  background: var(--panel2);
+  border: 1px solid var(--line2);
+  margin: 0 auto 0.75rem;
+}
+
+.sdk-audit-rows { display: flex; flex-direction: column; gap: 4px; }
+
+.sdk-audit-row {
+  display: grid; grid-template-columns: 12px 1fr auto;
+  gap: 0.6rem; align-items: center;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  font-family: var(--mono); font-size: 0.58rem;
+  transition: all 0.3s;
+}
+
+.sdk-audit-row.scanning { animation: scanPulse 2s ease-in-out infinite; }
+@keyframes scanPulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+.sdk-dot { width: 6px; height: 6px; border-radius: 50%; }
+.dot-ok   { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.dot-warn { background: var(--orange); box-shadow: 0 0 4px var(--orange); }
+.dot-bad  { background: var(--red); box-shadow: 0 0 4px var(--red); animation: blink 1.2s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.sdk-name { color: var(--ice); }
+.sdk-tag  { font-size: 0.52rem; padding: 0.15rem 0.45rem; border-radius: 1px; font-weight: 700; letter-spacing: 0.05em; }
+.tag-ok   { color: var(--green);  background: var(--green-dim);  border: 1px solid rgba(61,255,160,0.2); }
+.tag-warn { color: var(--orange); background: var(--orange-dim); border: 1px solid rgba(255,154,60,0.25); }
+.tag-bad  { color: var(--red);    background: var(--red-dim);    border: 1px solid rgba(255,77,109,0.3); }
+
+.sch-legend {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 0.5rem; margin-top: 1rem;
+}
+.legend-item {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: var(--mono); font-size: 0.52rem;
+  color: var(--muted); padding: 0.35rem 0.6rem;
+  background: var(--panel2); border: 1px solid var(--line);
+}
+
+/* annotation lines */
+.annot {
+  position: absolute;
+  font-family: var(--mono); font-size: 0.5rem;
+  color: var(--muted); letter-spacing: 0.1em;
+  display: flex; align-items: center; gap: 0.4rem;
+  white-space: nowrap;
+}
+.annot::before { content: ''; width: 20px; height: 1px; background: var(--line2); }
+.annot-right { right: -130px; }
+.annot-left  { left: -110px; flex-direction: row-reverse; }
+.annot-left::before { order: 1; }
+
+/* ── HERO TEXT ── */
+.hero-text {
+  position: relative; z-index: 2;
+  opacity: 0; animation: fadeUp 0.9s 0.1s ease forwards;
+}
+
+.stamp {
+  display: inline-flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.stamp-box {
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.2em;
+  border: 1px solid var(--line2);
+  padding: 0.35rem 0.9rem;
+  color: var(--muted);
+  background: var(--panel);
+}
+
+.stamp-box.active {
+  color: var(--cyan);
+  border-color: rgba(56,245,232,0.3);
+  background: var(--cyan-dim);
+}
+
+h1 {
+  font-family: var(--display);
+  font-size: clamp(3rem, 5.5vw, 6rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--white);
+  margin-bottom: 2rem;
+}
+
+h1 .accent { color: var(--cyan); }
+h1 .sub { font-weight: 300; color: var(--ice-dim); display: block; font-size: 0.55em; margin-top: 0.3em; letter-spacing: 0.05em; }
+
+.hero-desc {
+  font-size: 1.05rem; font-style: italic;
+  color: var(--ice-dim); line-height: 1.75;
+  max-width: 520px; margin-bottom: 2.5rem;
+  font-weight: 300;
+}
+
+.meta-row {
+  display: flex; flex-wrap: wrap; gap: 0.6rem;
+}
+
+.meta-chip {
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--line2);
+  color: var(--muted); background: var(--panel);
+}
+.meta-chip.hl { border-color: rgba(56,245,232,0.3); color: var(--cyan); background: var(--cyan-dim); }
+
+/* ══════════════════ LAYOUT ══════════════════ */
+.wrap {
+  max-width: 1200px; margin: 0 auto;
+  padding: 0 7vw;
+  position: relative; z-index: 2;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 5rem;
+  align-items: start;
+}
+
+/* ── TOC ── */
+.toc {
+  position: sticky; top: 4.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  overflow: hidden;
+}
+
+.toc-top {
+  background: var(--panel2);
+  padding: 0.7rem 1.25rem;
+  border-bottom: 1px solid var(--line2);
+  display: flex; align-items: center; gap: 0.75rem;
+}
+
+.toc-top-label {
+  font-family: var(--mono); font-size: 0.6rem;
+  text-transform: uppercase; letter-spacing: 0.18em;
+  color: var(--ice-dim);
+}
+
+.toc-indicator {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
+  animation: breathe 2s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.toc-list { padding: 0.5rem 0; }
+
+.toc-list a {
+  display: flex; align-items: baseline; gap: 0.7rem;
+  padding: 0.45rem 1.25rem;
+  font-family: var(--mono); font-size: 0.62rem;
+  color: var(--muted); text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: all 0.2s; line-height: 1.4;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.toc-list a:hover, .toc-list a.on {
+  color: var(--cyan); border-left-color: var(--cyan);
+  background: var(--cyan-dim);
+}
+.ti { font-size: 0.55rem; color: var(--line2); min-width: 1.2rem; }
+
+/* ══════════════════ ARTICLE ══════════════════ */
+article { padding-top: 6rem; }
+
+/* ── SECTION ── */
+.S {
+  margin-bottom: 5.5rem;
+  scroll-margin-top: 4rem;
+}
+
+.s-tag {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.s-id {
+  font-family: var(--mono); font-size: 0.58rem;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  border: 1px solid var(--line2);
+  padding: 0.3rem 0.85rem;
+  color: var(--muted); background: var(--panel);
+}
+
+.sev {
+  font-family: var(--mono); font-size: 0.58rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 0.3rem 0.85rem; font-weight: 700;
+}
+.sc { background: var(--red-dim);    border: 1px solid rgba(255,77,109,0.35);   color: var(--red);    }
+.sh { background: var(--orange-dim); border: 1px solid rgba(255,154,60,0.35);  color: var(--orange); }
+.sm { background: var(--cyan-dim);   border: 1px solid rgba(56,245,232,0.25);  color: var(--cyan);   }
+.sl { background: var(--green-dim);  border: 1px solid rgba(61,255,160,0.25);  color: var(--green);  }
+
+.s-h {
+  font-family: var(--display);
+  font-size: clamp(2rem, 3.5vw, 3rem);
+  font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; line-height: 1;
+  color: var(--white); margin-bottom: 0.6rem;
+}
+
+.s-sub {
+  font-size: 0.98rem; font-style: italic;
+  color: var(--muted); max-width: 640px;
+  line-height: 1.7; margin-bottom: 2.5rem;
+  font-weight: 300;
+}
+
+/* ── BODY TEXT ── */
+p { font-size: 0.95rem; color: var(--ice-dim); line-height: 1.85; margin-bottom: 1.25rem; font-weight: 300; }
+strong { color: var(--ice); font-weight: 600; }
+
+.lead {
+  font-size: 1.18rem; font-style: italic;
+  color: var(--ice); line-height: 1.75;
+  border-left: 2px solid var(--cyan);
+  padding-left: 1.75rem;
+  margin-bottom: 2rem;
+  font-weight: 300;
+}
+
+/* ── HR ── */
+.hr {
+  display: flex; align-items: center; gap: 1rem;
+  margin: 4rem 0;
+}
+.hr::before { content:''; flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--line2)); }
+.hr::after  { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--line2),transparent); }
+.hr-t {
+  font-family: var(--mono); font-size: 0.58rem;
+  color: var(--muted); letter-spacing: 0.2em;
+  text-transform: uppercase; white-space: nowrap;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--line2);
+}
+
+/* ── STATS ── */
+.stats {
+  display: grid; grid-template-columns: repeat(4,1fr);
+  background: var(--line); gap: 1px;
+  border: 1px solid var(--line2); margin: 3.5rem 0;
+}
+.stat {
+  background: var(--panel);
+  padding: 1.75rem 1.25rem;
+  position: relative; overflow: hidden;
+  transition: background 0.2s;
+}
+.stat:hover { background: var(--panel2); }
+.stat::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--cyan); transform: scaleX(0);
+  transform-origin: left; transition: transform 0.4s;
+}
+.stat:hover::after { transform: scaleX(1); }
+.s-n {
+  display: block; font-family: var(--display);
+  font-size: 2.8rem; font-weight: 800;
+  color: var(--cyan); line-height: 1; margin-bottom: 0.4rem;
+  text-shadow: 0 0 20px rgba(56,245,232,0.3);
+}
+.s-l {
+  font-family: var(--mono); font-size: 0.58rem;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+/* ── CHECKLIST ── */
+.cklist {
+  display: flex; flex-direction: column; gap: 1px;
+  background: var(--line); border: 1px solid var(--line2);
+  margin: 2rem 0;
+}
+
+.ci {
+  background: var(--panel);
+  display: grid; grid-template-columns: 44px 1fr 130px;
+  gap: 0; align-items: stretch;
+  transition: background 0.15s;
+  cursor: default;
+}
+.ci:hover { background: var(--panel2); }
+
+.ci-n {
+  display: flex; align-items: center; justify-content: center;
+  background: var(--panel2);
+  border-right: 1px solid var(--line2);
+  font-family: var(--mono); font-size: 0.62rem;
+  color: var(--muted2); font-weight: 700;
+  transition: color 0.2s, background 0.2s;
+}
+.ci:hover .ci-n { color: var(--cyan); background: var(--cyan-dim); }
+
+.ci-body { padding: 1rem 1.25rem; }
+
+.ci-t {
+  font-family: var(--display); font-weight: 600;
+  font-size: 0.9rem; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--white);
+  margin-bottom: 0.3rem; line-height: 1.3;
+}
+
+.ci-d {
+  font-size: 0.82rem; color: var(--muted);
+  line-height: 1.55; font-family: var(--serif);
+  font-style: italic; font-weight: 300;
+}
+
+.ci-right {
+  border-left: 1px solid var(--line2);
+  padding: 1rem;
+  display: flex; flex-direction: column;
+  align-items: flex-end; justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tool-chip {
+  font-family: var(--mono); font-size: 0.56rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--cyan); white-space: nowrap;
+  background: var(--cyan-dim);
+  border: 1px solid rgba(56,245,232,0.2);
+  padding: 0.22rem 0.6rem;
+  text-align: center; width: 100%;
+}
+
+.ci-sev { align-self: flex-start; }
+
+/* ── TERMINAL ── */
+.term {
+  background: #010a14;
+  border: 1px solid var(--line2);
+  margin: 2rem 0;
+  position: relative;
+}
+
+.term::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 100%;
+  background: repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(168,212,245,0.012) 31px,rgba(168,212,245,0.012) 32px);
+  pointer-events: none; z-index: 0;
+}
+
+.term-bar {
+  background: var(--panel2);
+  border-bottom: 1px solid var(--line2);
+  padding: 0.6rem 1.25rem;
+  display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+
+.term-dots { display: flex; gap: 0.4rem; }
+.term-dots span { width: 10px; height: 10px; border-radius: 50%; }
+.term-dots span:nth-child(1) { background: #ff5f57; }
+.term-dots span:nth-child(2) { background: #ffbd2e; }
+.term-dots span:nth-child(3) { background: #28ca41; }
+
+.term-fname {
+  font-family: var(--mono); font-size: 0.58rem;
+  color: var(--muted); letter-spacing: 0.12em;
+}
+
+.term-body {
+  padding: 1.25rem 1.5rem;
+  position: relative; z-index: 1;
+}
+
+.tl { font-family: var(--mono); font-size: 0.72rem; line-height: 2.1; display: flex; gap: 0.7rem; align-items: flex-start; }
+.ps  { color: var(--cyan); flex-shrink: 0; }
+.cm  { color: var(--ice-dim); }
+.ar  { color: var(--green); }
+.fl  { color: #c792ea; }
+.co  { color: var(--muted); font-style: italic; }
+.to-line { font-family: var(--mono); font-size: 0.7rem; line-height: 1.9; padding-left: 1.1rem; }
+.to-ok   { color: var(--green); }
+.to-warn { color: var(--orange); }
+.to-bad  { color: var(--red); }
+.to-dim  { color: var(--muted); }
+
+/* ── CODE BLOCK ── */
+.code {
+  background: #010a14;
+  border: 1px solid var(--line2);
+  margin: 2rem 0; overflow-x: auto;
+}
+
+.code-bar {
+  background: var(--panel2);
+  border-bottom: 1px solid var(--line2);
+  padding: 0.6rem 1.25rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.code-lang { font-family: var(--mono); font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--cyan); }
+.code-fn   { font-family: var(--mono); font-size: 0.58rem; color: var(--muted); }
+
+pre {
+  padding: 1.5rem 1.75rem;
+  font-family: var(--mono); font-size: 0.72rem;
+  line-height: 2.1; color: #4a7a9b; overflow-x: auto;
+}
+.ck { color: #c792ea; }
+.cs { color: #80cbc4; }
+.cf { color: var(--cyan); }
+.cv { color: #f78c6c; }
+.cn { color: var(--orange); }
+.cc { color: var(--muted); font-style: italic; }
+.ch { color: var(--red); }
+.cp { color: var(--green); }
+
+/* ── CALLOUT ── */
+.callout {
+  display: flex; gap: 1.25rem;
+  padding: 1.2rem 1.5rem;
+  margin: 2rem 0; border: 1px solid;
+  position: relative;
+}
+.callout::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; }
+.ca-c { background: var(--red-dim);    border-color: rgba(255,77,109,0.2);  }
+.ca-c::before { background: var(--red); }
+.ca-w { background: var(--orange-dim); border-color: rgba(255,154,60,0.2); }
+.ca-w::before { background: var(--orange); }
+.ca-t { background: var(--green-dim);  border-color: rgba(61,255,160,0.18);}
+.ca-t::before { background: var(--green); }
+.ca-i { background: var(--cyan-dim);   border-color: rgba(56,245,232,0.2); }
+.ca-i::before { background: var(--cyan); }
+
+.ca-icon { font-size: 0.9rem; flex-shrink: 0; padding-top: 0.1rem; }
+.ca-body { font-size: 0.86rem; line-height: 1.7; font-family: var(--serif); font-weight: 300; }
+.ca-c .ca-body { color: #fca5a5; }
+.ca-w .ca-body { color: #fed7aa; }
+.ca-t .ca-body { color: #a7f3d0; }
+.ca-i .ca-body { color: #a5f3fc; }
+
+/* ── STEPS ── */
+.steps { margin: 2rem 0; }
+
+.step {
+  display: grid; grid-template-columns: 56px 1fr;
+  border: 1px solid var(--line2);
+  margin-bottom: 1px;
+  background: var(--panel);
+  transition: background 0.2s;
+}
+.step:hover { background: var(--panel2); }
+
+.step-n {
+  background: var(--panel2);
+  border-right: 1px solid var(--line2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--display); font-size: 1.8rem; font-weight: 800;
+  color: var(--line2); padding: 1.25rem;
+  transition: color 0.2s;
+}
+.step:hover .step-n { color: var(--cyan); }
+
+.step-c { padding: 1.25rem 1.5rem; }
+
+.step-t {
+  font-family: var(--display); font-weight: 600;
+  font-size: 0.9rem; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--white);
+  margin-bottom: 0.35rem;
+}
+
+.step-d {
+  font-size: 0.84rem; color: var(--muted);
+  line-height: 1.6; font-family: var(--serif);
+  font-style: italic; font-weight: 300;
+}
+
+/* ── VS ── */
+.vs {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px; background: var(--line);
+  border: 1px solid var(--line2); margin: 2rem 0;
+}
+.vs-p { background: var(--panel); padding: 1.5rem; }
+.vs-h {
+  font-family: var(--mono); font-size: 0.58rem;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  margin-bottom: 0.9rem; padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line2);
+}
+.vs-bad  .vs-h { color: var(--red);   }
+.vs-good .vs-h { color: var(--green); }
+.vs-code {
+  font-family: var(--mono); font-size: 0.7rem;
+  line-height: 1.9; word-break: break-all;
+}
+.vs-bad  .vs-code { color: #fca5a5; }
+.vs-good .vs-code { color: #a7f3d0; }
+
+/* ── TABLE ── */
+.dtable {
+  width: 100%; border-collapse: collapse;
+  font-size: 0.83rem; margin: 2rem 0;
+}
+.dtable thead tr { background: var(--panel2); border-bottom: 1px solid var(--line2); }
+.dtable th {
+  padding: 0.7rem 1rem;
+  font-family: var(--mono); font-size: 0.57rem;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--cyan); text-align: left; font-weight: 400;
+}
+.dtable td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(14,42,71,0.9);
+  color: var(--ice-dim); line-height: 1.6;
+  vertical-align: top; font-family: var(--serif); font-weight: 300;
+}
+.dtable tr:last-child td { border-bottom: none; }
+.dtable tr:nth-child(even) td { background: rgba(7,22,40,0.7); }
+.dtable td:first-child { font-family: var(--mono); font-size: 0.75rem; color: var(--ice); font-weight: 400; }
+
+/* ── FINDING CARD ── */
+.finding {
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-top: 2px solid var(--red);
+  padding: 1.5rem 1.5rem 1.25rem;
+  margin: 2rem 0; position: relative;
+}
+.f-label {
+  position: absolute; top: -0.6rem; left: 1.5rem;
+  font-family: var(--mono); font-size: 0.56rem;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--red); background: var(--ink);
+  padding: 0 0.5rem;
+}
+.f-title {
+  font-family: var(--display); font-weight: 700;
+  font-size: 0.95rem; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--white);
+  margin-bottom: 0.5rem;
+}
+.f-body {
+  font-size: 0.86rem; color: var(--ice-dim);
+  line-height: 1.65; font-family: var(--serif); font-weight: 300;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+.reveal { opacity:0; transform:translateY(20px); transition:opacity 0.65s ease,transform 0.65s ease; }
+.reveal.vis { opacity:1; transform:none; }
+
+code {
+  font-family: var(--mono); font-size: 0.8em;
+  background: var(--panel2); color: var(--cyan);
+  padding: 0.1em 0.4em; border: 1px solid var(--line2);
+}
+
+/* ── FOOTER ── */
+footer {
+  position: relative; z-index: 2;
+  border-top: 1px solid var(--line2);
+  padding: 2.5rem 7vw;
+  display: flex; justify-content: space-between;
+  align-items: center; flex-wrap: wrap; gap: 1rem;
+  margin-top: 6rem;
+}
+.f-id { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); letter-spacing: 0.1em; }
+.f-links { display: flex; gap: 2rem; list-style: none; }
+.f-links a { font-family: var(--mono); font-size: 0.58rem; color: var(--muted); text-decoration: none; text-transform: uppercase; letter-spacing: 0.1em; transition: color 0.2s; }
+.f-links a:hover { color: var(--cyan); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 960px) {
+  header { grid-template-columns: 1fr; min-height: auto; padding-top: 10vh; padding-bottom: 8vh; }
+  .schematic { display: none; }
+  .layout { grid-template-columns: 1fr; }
+  .toc { display: none; }
+  .vs { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2,1fr); }
+  .ci { grid-template-columns: 44px 1fr; }
+  .ci-right { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div id="prog"></div>
+
+<!-- ═══════════════ HEADER ═══════════════ -->
+<header>
+
+  <div class="hero-text">
+    <div class="stamp">
+      <span class="stamp-box">Mobile Appsec</span>
+      <span class="stamp-box active">SDK Audit</span>
+      <span class="stamp-box">v1.0</span>
+    </div>
+
+    <h1>
+      SDK UNDER<br>
+      THE <span class="accent">MICROSCOPE</span>
+      <span class="sub">Third-Party SDK Assessment — Hands-On Checklist</span>
+    </h1>
+
+    <p class="hero-desc">
+      Every third-party SDK you ship is unreviewed code running inside your app's trust boundary, touching your users' data. This is the complete hands-on methodology to find what's hiding inside.
+    </p>
+
+    <div class="meta-row">
+      <span class="meta-chip hl">Android &amp; iOS</span>
+      <span class="meta-chip">60+ Test Cases</span>
+      <span class="meta-chip">Frida / Objection</span>
+      <span class="meta-chip">MobSF / jadx</span>
+      <span class="meta-chip">Static + Dynamic</span>
+      <span class="meta-chip">MASVS Aligned</span>
+    </div>
+  </div>
+
+  <!-- SCHEMATIC PANEL -->
+  <div class="schematic">
+    <div class="sch-title">SDK_SCAN — LIVE AUDIT VIEW</div>
+    <div class="sch-frame">
+      <div class="sch-inner">
+        <div class="sch-phone">
+          <div class="notch"></div>
+          <div class="sdk-audit-rows">
+            <div class="sdk-audit-row">
+              <div class="sdk-dot dot-ok"></div>
+              <span class="sdk-name">firebase-analytics:21.5</span>
+              <span class="sdk-tag tag-ok">PASS</span>
+            </div>
+            <div class="sdk-audit-row scanning">
+              <div class="sdk-dot dot-bad"></div>
+              <span class="sdk-name">mopub-sdk:5.17.0</span>
+              <span class="sdk-tag tag-bad">CVE-2022</span>
+            </div>
+            <div class="sdk-audit-row">
+              <div class="sdk-dot dot-warn"></div>
+              <span class="sdk-name">facebook-sdk:16.0.0</span>
+              <span class="sdk-tag tag-warn">REVIEW</span>
+            </div>
+            <div class="sdk-audit-row scanning">
+              <div class="sdk-dot dot-bad"></div>
+              <span class="sdk-name">analytics-pro:2.3.1</span>
+              <span class="sdk-tag tag-bad">NO PIN</span>
+            </div>
+            <div class="sdk-audit-row">
+              <div class="sdk-dot dot-ok"></div>
+              <span class="sdk-name">stripe-android:20.25</span>
+              <span class="sdk-tag tag-ok">PASS</span>
+            </div>
+            <div class="sdk-audit-row">
+              <div class="sdk-dot dot-warn"></div>
+              <span class="sdk-name">adjust-sdk:4.33.0</span>
+              <span class="sdk-tag tag-warn">PII?</span>
+            </div>
+            <div class="sdk-audit-row scanning">
+              <div class="sdk-dot dot-bad"></div>
+              <span class="sdk-name">tracking-sdk:1.9.2</span>
+              <span class="sdk-tag tag-bad">HARDCODED</span>
+            </div>
+          </div>
+        </div>
+        <div class="sch-legend">
+          <div class="legend-item"><div class="sdk-dot dot-ok" style="flex-shrink:0"></div> Clean</div>
+          <div class="legend-item"><div class="sdk-dot dot-warn" style="flex-shrink:0"></div> Review</div>
+          <div class="legend-item"><div class="sdk-dot dot-bad" style="flex-shrink:0"></div> Flag</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</header>
+
+<!-- ═══════════════ MAIN ═══════════════ -->
+<div class="wrap">
+<div class="layout">
+
+<article>
+
+  <!-- ── INTRO ── -->
+  <section class="S reveal" id="intro">
+    <p class="lead">You audit your own code. But do you audit the code you import? Third-party SDKs collectively represent the largest unreviewed attack surface in most production mobile apps — and attackers know it.</p>
+
+    <p>Supply chain attacks against mobile SDKs are rising. In recent years, advertising SDKs have been caught silently harvesting clipboard contents, analytics packages exfiltrated full device fingerprints without disclosure, and payment SDKs shipped with staging credentials hardcoded in production binaries. A single compromised or poorly secured SDK can undo an otherwise solid security posture.</p>
+
+    <p>This guide provides a <strong>structured, hands-on assessment checklist</strong> covering all major risk surfaces: SDK discovery and version auditing, static binary analysis, runtime hooking with Frida, network traffic interception and decryption, data storage inspection, permission analysis, privacy compliance validation, and SDK update mechanism security. Every checklist item maps to the exact tool command you need.</p>
+
+    <div class="stats">
+      <div class="stat"><span class="s-n">10</span><span class="s-l">Categories</span></div>
+      <div class="stat"><span class="s-n">60+</span><span class="s-l">Test Cases</span></div>
+      <div class="stat"><span class="s-n">2</span><span class="s-l">Platforms</span></div>
+      <div class="stat"><span class="s-n">S+D</span><span class="s-l">Static &amp; Dynamic</span></div>
+    </div>
+  </section>
+
+  <div class="hr"><span class="hr-t">// CAT-01 · SDK INVENTORY</span></div>
+
+  <!-- ── CAT 01: INVENTORY ── -->
+  <section class="S reveal" id="cat01">
+    <div class="s-tag"><span class="s-id">CAT-01</span></div>
+    <div class="s-h">SDK Discovery &amp; Inventory</div>
+    <p class="s-sub">You cannot assess what you haven't catalogued. Build a complete inventory — including transitive dependencies the dev team may not know exist.</p>
+
+    <p>The first step in every SDK assessment is obtaining and decompiling the production binary directly from the app store — not from the development environment. What ships to users and what lives in the repo can differ meaningfully: build scripts, CI configurations, and flavour variants all affect the final binary.</p>
+
+    <div class="cklist">
+      <div class="ci">
+        <div class="ci-n">01</div>
+        <div class="ci-body">
+          <div class="ci-t">Download production binary from the app store</div>
+          <div class="ci-d">Pull the live production APK/IPA — not a debug build. Use gplaycli (Android) or Apple Configurator 2 (iOS) to obtain the exact binary end users run.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">gplaycli / iTunes</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">02</div>
+        <div class="ci-body">
+          <div class="ci-t">Decompile APK and enumerate all SDK packages</div>
+          <div class="ci-d">Use jadx to decompile to Java source. Extract all third-party package namespaces from the class structure. Compare against the dev team's declared dependency list.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">jadx / apktool</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">03</div>
+        <div class="ci-body">
+          <div class="ci-t">Unpack all bundled .aar and .jar files</div>
+          <div class="ci-d">SDK A often bundles SDK B which bundles SDK C. Extract nested archives and decompile each to surface the full transitive dependency tree.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">unzip + jadx</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">04</div>
+        <div class="ci-body">
+          <div class="ci-t">Cross-reference all SDK versions against CVE databases</div>
+          <div class="ci-d">Run osv-scanner and grype against the decompiled output. Flag any SDK with a known CVE at CVSS ≥ 7.0 for immediate escalation before continuing the assessment.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">osv-scanner / grype</span>
+          <span class="sev sc ci-sev">Critical if CVE</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">05</div>
+        <div class="ci-body">
+          <div class="ci-t">Verify SDK vendor ownership and supply chain integrity</div>
+          <div class="ci-d">Check if SDK package ownership has changed recently — acquisitions, domain takeovers, and maintainer changes are known vectors for supply chain attacks on legitimate SDKs.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">Manual OSINT</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">06</div>
+        <div class="ci-body">
+          <div class="ci-t">Generate and archive SBOM for the engagement</div>
+          <div class="ci-d">Produce a Software Bill of Materials (SBOM) in SPDX or CycloneDX format for all discovered SDKs. This becomes the baseline for CVE monitoring and future re-assessments.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">syft / cdxgen</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-bar">
+        <div class="term-dots"><span></span><span></span><span></span></div>
+        <span class="term-fname">cat01-inventory.sh</span>
+      </div>
+      <div class="term-body">
+        <div class="tl"><span class="co"># ── DECOMPILE & ENUMERATE ─────────────────────────────</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">apktool d </span><span class="ar">target.apk</span><span class="fl"> -o</span><span class="ar"> ./decompiled</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">jadx </span><span class="fl">-d</span><span class="ar"> ./jadx_out</span><span class="ar"> target.apk</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># Extract all third-party package roots from smali</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">grep </span><span class="fl">-rh</span><span class="ar"> "^.class"</span><span class="cm"> ./decompiled/smali \</span></div>
+        <div class="tl"><span class="ps"> </span><span class="cm">  | awk '{print $2}' | cut -d/ -f1-3 | sort -u</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># ── CVE SCAN ──────────────────────────────────────────</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">grype </span><span class="ar">dir:./jadx_out </span><span class="fl">--output</span><span class="ar"> table</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">osv-scanner </span><span class="ar">--sbom ./sbom.json</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="to-line to-bad">VULN  com.mopub:mopub-sdk:5.17.0  CVE-2022-34468  CVSS:9.8  RCE</div>
+        <div class="to-line to-warn">WARN  com.facebook:facebook-sdk:11.3.0  CVE-2021-24026  CVSS:6.5</div>
+        <div class="to-line to-ok">OK    com.stripe:stripe-android:20.25.4  No known CVEs</div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># ── GENERATE SBOM ─────────────────────────────────────</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">syft </span><span class="ar">./jadx_out </span><span class="fl">-o</span><span class="ar"> cyclonedx-json</span><span class="cm"> > sdk_sbom.json</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hr"><span class="hr-t">// CAT-02 · STATIC BINARY ANALYSIS</span></div>
+
+  <!-- ── CAT 02: STATIC ── -->
+  <section class="S reveal" id="cat02">
+    <div class="s-tag"><span class="s-id">CAT-02</span><span class="sev sc">Critical</span></div>
+    <div class="s-h">Static Binary Analysis</div>
+    <p class="s-sub">Reverse-engineer SDK code to expose hardcoded secrets, dangerous API usage, insecure crypto patterns, and privacy-violating data collection — without running a single line of code.</p>
+
+    <div class="cklist">
+      <div class="ci">
+        <div class="ci-n">01</div>
+        <div class="ci-body">
+          <div class="ci-t">Hunt for hardcoded secrets and API credentials</div>
+          <div class="ci-d">Regex-scan decompiled Java source for API keys, OAuth tokens, AWS credentials, Firebase secrets, private endpoint URLs, and bearer tokens. Run truffleHog with verified-only mode for highest accuracy.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">truffleHog / semgrep</span>
+          <span class="sev sc ci-sev">Critical</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">02</div>
+        <div class="ci-body">
+          <div class="ci-t">Identify weak or broken cryptography in SDK code</div>
+          <div class="ci-d">Search for MD5, SHA-1, DES, AES/ECB mode, hardcoded IV, static seeds passed to SecureRandom, and any custom-rolled crypto implementation. All are exploitable weaknesses.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">MobSF / semgrep</span>
+          <span class="sev sh ci-sev">High</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">03</div>
+        <div class="ci-body">
+          <div class="ci-t">Detect dynamic class loading and reflection</div>
+          <div class="ci-d">Find uses of DexClassLoader, PathClassLoader, Class.forName(), and reflection-based method invocation. These can download and execute arbitrary code at runtime — the core mechanism of SDK update-based attacks.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">jadx + grep</span>
+          <span class="sev sc ci-sev">Critical</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">04</div>
+        <div class="ci-body">
+          <div class="ci-t">Scan for device identifier and PII collection patterns</div>
+          <div class="ci-d">Search for access to ANDROID_ID, IMEI/getDeviceId(), MAC address, GAID/IDFA, clipboard content, contact enumeration, and call log access. Cross-reference with SDK documentation claims.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">grep / semgrep</span>
+          <span class="sev sh ci-sev">High</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">05</div>
+        <div class="ci-body">
+          <div class="ci-t">Audit exported Android components registered by SDK</div>
+          <div class="ci-d">Inspect the merged AndroidManifest for Activities, Services, BroadcastReceivers, and ContentProviders exported by SDK code. Exported components without permission checks are accessible to any app on the device.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">aapt2 / MobSF</span>
+          <span class="sev sh ci-sev">High</span>
+        </div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">06</div>
+        <div class="ci-body">
+          <div class="ci-t">Check for native (.so) code and JNI boundaries</div>
+          <div class="ci-d">If the SDK bundles native libraries, static Java analysis is insufficient. Extract .so files and open in Ghidra or Binary Ninja to audit C/C++ code for memory safety issues and hidden functionality.</div>
+        </div>
+        <div class="ci-right">
+          <span class="tool-chip">Ghidra / readelf</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="code">
+      <div class="code-bar">
+        <span class="code-lang">Bash — Static Scan</span>
+        <span class="code-fn">static_analysis.sh</span>
+      </div>
+<pre>
+<span class="cc"># ── SECRET DETECTION ──────────────────────────────────────────────</span>
+<span class="cf">trufflehog</span> filesystem ./jadx_out/<span class="cv">SDK_PACKAGE</span> --only-verified
+
+<span class="cc"># Manual regex sweep for common credential patterns</span>
+<span class="cf">grep</span> -rEn \
+  <span class="cs">'(api[_-]?key|secret|token|password|aws_|AIza)["\s:=]+[A-Za-z0-9+/\-_]{20,}'</span> \
+  ./jadx_out/ --include=<span class="cs">"*.java"</span>
+
+<span class="cc"># ── CRYPTO WEAKNESS PATTERNS ──────────────────────────────────────</span>
+<span class="cf">grep</span> -rn \
+  <span class="cs">"getInstance\(\"MD5\"\)\|getInstance\(\"DES\"\)\|AES/ECB\|SHA-1\|SecureRandom()"</span> \
+  ./jadx_out/
+
+<span class="cc"># ── DANGEROUS RUNTIME CAPABILITIES ───────────────────────────────</span>
+<span class="cc"># Dynamic class loading (post-install code execution risk)</span>
+<span class="cf">grep</span> -rn <span class="cs">"DexClassLoader\|PathClassLoader\|loadClass\|forName("</span> ./jadx_out/
+
+<span class="cc"># Device identifier / PII harvesting</span>
+<span class="cf">grep</span> -rn <span class="cs">"ANDROID_ID\|getDeviceId\|getImei\|getMacAddress\
+\|getClipboardText\|getContactList\|READ_CALL_LOG"</span> ./jadx_out/
+
+<span class="cc"># ── MOBSF AUTOMATED DEEP SCAN ─────────────────────────────────────</span>
+<span class="cf">curl</span> -X POST -F <span class="cs">"file=@target.apk"</span> \
+  http://localhost:8000/api/v1/upload \
+  -H <span class="cs">"Authorization: </span><span class="cv">$MOBSF_API_KEY</span><span class="cs">"</span>
+<span class="cf">curl</span> http://localhost:8000/api/v1/report_pdf \
+  -d <span class="cs">"hash=</span><span class="cv">$SCAN_HASH</span><span class="cs">"</span> -H <span class="cs">"Authorization: </span><span class="cv">$MOBSF_API_KEY</span><span class="cs">"</span>
+</pre>
+    </div>
+
+    <div class="finding">
+      <div class="f-label">Example Critical Finding</div>
+      <div class="f-title">Hardcoded Production API Key in Ad SDK Binary</div>
+      <div class="f-body">File <code>jadx_out/com/adnetwork/sdk/Config.java</code>, line 43: <code>private static final String LIVE_KEY = "sk_live_9fXm3k2R..."</code> — a live, active production API key compiled into the SDK binary. Any user who decompiles the distributed APK gains direct access to the ad network's production API. <strong>CVSS: 9.1 (Critical)</strong>. Immediate rotation and removal required.</div>
+    </div>
+  </section>
+
+  <div class="hr"><span class="hr-t">// CAT-03 · NETWORK TRAFFIC INTERCEPTION</span></div>
+
+  <!-- ── CAT 03: NETWORK ── -->
+  <section class="S reveal" id="cat03">
+    <div class="s-tag"><span class="s-id">CAT-03</span><span class="sev sc">Critical</span></div>
+    <div class="s-h">Network Traffic Interception</div>
+    <p class="s-sub">Intercept every byte the SDK sends to identify unencrypted channels, undisclosed data exfiltration, missing certificate pinning, and communication with unexpected third-party endpoints.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div class="step-c">
+          <div class="step-t">Configure MITM proxy and route device traffic</div>
+          <div class="step-d">Set up Burp Suite or mitmproxy. Configure the test device's Wi-Fi proxy to point to your machine. Install the proxy CA certificate on the device under test.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div class="step-c">
+          <div class="step-t">Disable SSL certificate pinning at runtime</div>
+          <div class="step-d">Production SDKs implement certificate pinning. Use Frida with ssl-kill-switch2 (iOS) or objection's <code>android sslpinning disable</code> command (Android) to strip pinning before interception.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div class="step-c">
+          <div class="step-t">Exercise every SDK-powered feature systematically</div>
+          <div class="step-d">Trigger: SDK initialisation, analytics events, ad loading, crash reporting, feature flag checks, A/B test evaluation, push notification registration, and user identity operations. Capture all resulting network calls.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">4</div>
+        <div class="step-c">
+          <div class="step-t">Map all SDK destination domains</div>
+          <div class="step-d">Build a complete domain inventory from captured traffic. Flag: undisclosed domains, data broker domains, ad exchange endpoints, and any endpoints in unexpected geographies. Cross-reference against privacy policy disclosures.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">5</div>
+        <div class="step-c">
+          <div class="step-t">Inspect request bodies for PII and sensitive data</div>
+          <div class="step-d">For each SDK endpoint, inspect the full request body. Look for: email, phone number, device IMEI, GAID/IDFA, precise GPS coordinates, IP address, clipboard content, and behavioural data. Flag any PII not disclosed to users.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">6</div>
+        <div class="step-c">
+          <div class="step-t">Test cleartext fallback behaviour</div>
+          <div class="step-d">Force HTTPS to fail (drop connections to SDK domains) and observe if the SDK retries over HTTP. Check Android Network Security Config for <code>cleartextTrafficPermitted="true"</code> exceptions injected by the SDK. Check iOS App Transport Security exceptions.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-bar">
+        <div class="term-dots"><span></span><span></span><span></span></div>
+        <span class="term-fname">cat03-network.sh</span>
+      </div>
+      <div class="term-body">
+        <div class="tl"><span class="co"># ── ANDROID: bypass SSL pinning via objection ─────────────</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">objection </span><span class="fl">-g</span><span class="ar"> com.target.app</span><span class="cm"> explore</span></div>
+        <div class="tl"><span class="ps">></span><span class="cm"> android sslpinning disable</span></div>
+        <div class="to-line to-ok">✔  SSL pinning disabled (12 methods patched)</div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># ── iOS: ssl-kill-switch2 via Frida ───────────────────────</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">frida </span><span class="fl">-U -f</span><span class="ar"> com.target.app</span><span class="fl"> -l</span><span class="ar"> ssl-kill-switch2.js</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># ── Capture traffic with mitmproxy ────────────────────────</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">mitmdump </span><span class="fl">-w</span><span class="ar"> sdk_capture.mitm</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># ── Filter and extract unique SDK domains ─────────────────</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">mitmproxy </span><span class="fl">-r</span><span class="ar"> sdk_capture.mitm</span><span class="fl"> --set</span><span class="ar"> flow_detail=2</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">python3 </span><span class="fl">-c</span><span class="ar"> "import mitmproxy.io; [print(f.request.host) \
+          for f in mitmproxy.io.FlowReader(open('sdk_capture.mitm','rb'))]"</span><span class="cm"> | sort -u</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="to-line to-ok">  analytics.firebase.com</div>
+        <div class="to-line to-ok">  api.stripe.com</div>
+        <div class="to-line to-warn">  sdk.analytics-pro.com   ← HTTP (no TLS!)</div>
+        <div class="to-line to-bad">  collect.data-broker.ru  ← UNDISCLOSED ENDPOINT</div>
+        <div class="to-line to-bad">  POST body: {"imei":"358976081234567","email":"user@example.com","clipboard":"visa 4111..."}</div>
+      </div>
+    </div>
+
+    <div class="callout ca-c">
+      <span class="ca-icon">🔴</span>
+      <div class="ca-body"><strong>Critical Finding Pattern:</strong> Any SDK transmitting PII (email, device ID, location, payment data) to an undisclosed domain — especially over unencrypted HTTP — is a <strong>Critical</strong> finding with GDPR/CCPA implications. Document the exact request including headers, body, and destination IP. Screenshot Burp history showing the response.</div>
+    </div>
+  </section>
+
+  <div class="hr"><span class="hr-t">// CAT-04 · DYNAMIC RUNTIME ANALYSIS</span></div>
+
+  <!-- ── CAT 04: DYNAMIC ── -->
+  <section class="S reveal" id="cat04">
+    <div class="s-tag"><span class="s-id">CAT-04</span><span class="sev sh">High</span></div>
+    <div class="s-h">Dynamic Runtime Analysis with Frida</div>
+    <p class="s-sub">Hook into live SDK execution to observe method calls, intercept data before encryption, modify return values, and reveal runtime behaviours that static analysis cannot surface.</p>
+
+    <p>Frida is the most powerful tool in the SDK assessor's arsenal. It lets you inject JavaScript into a running process, hook any method in the JVM or Objective-C runtime, read arguments and return values, and even modify behaviour mid-execution. The most impactful finding class from dynamic analysis is consistently <strong>PII collected before transmission</strong> — visible only at the hook point, invisible after the SDK's own encryption layer.</p>
+
+    <div class="code">
+      <div class="code-bar">
+        <span class="code-lang">Frida — JavaScript</span>
+        <span class="code-fn">sdk_runtime_hooks.js</span>
+      </div>
+<pre>
+<span class="cc">// ══ HOOK SDK DATA COLLECTION METHODS ══════════════════════════════</span>
+<span class="ck">Java</span>.<span class="cf">perform</span>(<span class="ck">function</span>() {
+
+  <span class="cc">// 1. Hook SDK initialization — see what it collects on startup</span>
+  <span class="ck">const</span> <span class="cv">SDK</span> = <span class="ck">Java</span>.<span class="cf">use</span>(<span class="cs">"com.analytics.sdk.AnalyticsManager"</span>);
+
+  <span class="cv">SDK</span>.<span class="cf">initialize</span>.<span class="cf">overload</span>(<span class="cs">"android.content.Context"</span>, <span class="cs">"java.lang.String"</span>)
+    .<span class="cf">implementation</span> = <span class="ck">function</span>(ctx, key) {
+      console.<span class="cf">log</span>(<span class="cs">"[FRIDA] SDK.initialize() called"</span>);
+      console.<span class="cf">log</span>(<span class="cs">"  API Key passed in: "</span> + key);
+      <span class="cc">// Check what context data it harvests during init</span>
+      <span class="ck">return this</span>.<span class="cf">initialize</span>(ctx, key);
+    };
+
+  <span class="cc">// 2. Hook outbound payload BEFORE SDK encrypts it</span>
+  <span class="ck">const</span> <span class="cv">Collector</span> = <span class="ck">Java</span>.<span class="cf">use</span>(<span class="cs">"com.analytics.sdk.DataCollector"</span>);
+
+  <span class="cv">Collector</span>.<span class="cf">buildPayload</span>.<span class="cf">overload</span>(<span class="cs">"java.util.Map"</span>)
+    .<span class="cf">implementation</span> = <span class="ck">function</span>(data) {
+      console.<span class="cf">log</span>(<span class="cs">"[FRIDA] PRE-ENCRYPTION PAYLOAD:"</span>);
+      console.<span class="cf">log</span>(<span class="cs">"  "</span> + data.<span class="cf">toString</span>());  <span class="cc">// full plaintext before encryption</span>
+      <span class="ck">return this</span>.<span class="cf">buildPayload</span>(data);
+    };
+
+  <span class="cc">// 3. Monitor ALL filesystem writes by the SDK</span>
+  <span class="ck">const</span> <span class="cv">FOS</span> = <span class="ck">Java</span>.<span class="cf">use</span>(<span class="cs">"java.io.FileOutputStream"</span>);
+  <span class="cv">FOS</span>.<span class="cf">$init</span>.<span class="cf">overload</span>(<span class="cs">"java.lang.String"</span>).<span class="cf">implementation</span> = <span class="ck">function</span>(path) {
+    <span class="ck">if</span> (path.<span class="cf">includes</span>(<span class="cs">"sdk"</span>) || path.<span class="cf">includes</span>(<span class="cs">"analytics"</span>)) {
+      console.<span class="cf">log</span>(<span class="cs">"[FRIDA] SDK writing to: "</span> + path);
+      console.<span class="cf">log</span>(<span class="ck">Java</span>.<span class="cf">use</span>(<span class="cs">"android.util.Log"</span>)
+        .<span class="cf">getStackTraceString</span>(<span class="ck">Java</span>.<span class="cf">use</span>(<span class="cs">"java.lang.Exception"</span>).<span class="cf">$new</span>()));
+    }
+    <span class="ck">return this</span>.<span class="cf">$init</span>(path);
+  };
+
+  <span class="cc">// 4. Hook clipboard access (common data harvesting path)</span>
+  <span class="ck">const</span> <span class="cv">CM</span> = <span class="ck">Java</span>.<span class="cf">use</span>(<span class="cs">"android.content.ClipboardManager"</span>);
+  <span class="cv">CM</span>.<span class="cf">getPrimaryClip</span>.<span class="cf">implementation</span> = <span class="ck">function</span>() {
+    console.<span class="cf">log</span>(<span class="cs">"[FRIDA] ⚠️  SDK accessed CLIPBOARD!"</span>);
+    console.<span class="cf">log</span>(<span class="ck">Java</span>.<span class="cf">use</span>(<span class="cs">"android.util.Log"</span>)
+      .<span class="cf">getStackTraceString</span>(<span class="ck">Java</span>.<span class="cf">use</span>(<span class="cs">"java.lang.Exception"</span>).<span class="cf">$new</span>()));
+    <span class="ck">return this</span>.<span class="cf">getPrimaryClip</span>();
+  };
+});
+</pre>
+    </div>
+
+    <div class="term">
+      <div class="term-bar">
+        <div class="term-dots"><span></span><span></span><span></span></div>
+        <span class="term-fname">frida-live-output</span>
+      </div>
+      <div class="term-body">
+        <div class="tl"><span class="ps">$</span><span class="cm">frida </span><span class="fl">-U -n</span><span class="ar"> "Target App"</span><span class="fl"> -l</span><span class="ar"> sdk_runtime_hooks.js</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="to-line to-dim">[Frida] Attached. Hooks installed (4 methods)</div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="to-line to-warn">[FRIDA] SDK.initialize() called</div>
+        <div class="to-line to-warn">  API Key passed in: sk_live_9fXm3k2Rv...</div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="to-line to-bad">[FRIDA] PRE-ENCRYPTION PAYLOAD:</div>
+        <div class="to-line to-bad">  {email=user@example.com, imei=358976081234567,</div>
+        <div class="to-line to-bad">   location=37.7749,-122.4194, app_version=3.2.1,</div>
+        <div class="to-line to-bad">   clipboard=visa 4111111111111111 exp 04/26}</div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="to-line to-bad">[FRIDA] ⚠️  SDK accessed CLIPBOARD!</div>
+        <div class="to-line to-dim">  com.adnetwork.sdk.DataCollector.collectContext(DataCollector.java:127)</div>
+        <div class="to-line to-dim">  com.adnetwork.sdk.AnalyticsManager.initialize(AnalyticsManager.java:84)</div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># objection: list SDK files written to internal storage</span></div>
+        <div class="tl"><span class="ps">></span><span class="cm"> android filesystem list</span><span class="ar"> /data/data/com.target.app/files/</span></div>
+        <div class="to-line to-bad">  sdk_profile.db    142KB   (SQLite database)</div>
+        <div class="to-line to-bad">  sdk_events.json    89KB   (JSON event log)</div>
+      </div>
+    </div>
+
+    <div class="callout ca-w">
+      <span class="ca-icon">⚠️</span>
+      <div class="ca-body">The Frida pre-encryption hook is the single most valuable technique in SDK dynamic analysis. It intercepts data in plaintext <em>before</em> the SDK's own encryption layer — revealing the true scope of data collection that network-level analysis alone cannot expose. Always hook <code>buildPayload</code>, <code>serialize</code>, and <code>encrypt</code> method boundaries.</div>
+    </div>
+  </section>
+
+  <div class="hr"><span class="hr-t">// CAT-05 · DATA STORAGE</span></div>
+
+  <!-- ── CAT 05: STORAGE ── -->
+  <section class="S reveal" id="cat05">
+    <div class="s-tag"><span class="s-id">CAT-05</span><span class="sev sh">High</span></div>
+    <div class="s-h">Data Storage Inspection</div>
+    <p class="s-sub">Examine everything the SDK writes to the device — SQLite databases, SharedPreferences, flat files, and Keychain entries — and verify sensitive data is never stored in plaintext.</p>
+
+    <div class="cklist">
+      <div class="ci">
+        <div class="ci-n">01</div>
+        <div class="ci-body">
+          <div class="ci-t">Pull and inspect all SDK-written SQLite databases</div>
+          <div class="ci-d">Run the app, trigger all SDK features, then pull the full app data directory. Open every .db file in sqlitebrowser and examine schema and content for PII, session tokens, or behavioural profiles stored in plaintext.</div>
+        </div>
+        <div class="ci-right"><span class="tool-chip">adb pull + sqlitebrowser</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">02</div>
+        <div class="ci-body">
+          <div class="ci-t">Inspect SharedPreferences XML files for sensitive SDK data</div>
+          <div class="ci-d">SDK identifiers, auth tokens, and cached PII are routinely stored in SharedPreferences XML in plaintext. Pull all XML files from <code>/data/data/[package]/shared_prefs/</code> and grep for credentials.</div>
+        </div>
+        <div class="ci-right"><span class="tool-chip">adb / objection</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">03</div>
+        <div class="ci-body">
+          <div class="ci-t">Verify SDK does not write to external (world-readable) storage</div>
+          <div class="ci-d">External storage is readable by any app holding READ_EXTERNAL_STORAGE. Use a Frida FileOutputStream hook to catch any SDK writes to /sdcard/, /storage/emulated/0/, or other public paths.</div>
+        </div>
+        <div class="ci-right"><span class="tool-chip">Frida hook / adb</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">04</div>
+        <div class="ci-body">
+          <div class="ci-t">iOS: Audit SDK Keychain entries and accessibility flags</div>
+          <div class="ci-d">Dump all keychain items via objection <code>ios keychain dump</code>. Flag items stored with <code>kSecAttrAccessibleAlways</code> — these are accessible even when the device is locked and without biometric confirmation.</div>
+        </div>
+        <div class="ci-right"><span class="tool-chip">objection iOS</span></div>
+      </div>
+      <div class="ci">
+        <div class="ci-n">05</div>
+        <div class="ci-body">
+          <div class="ci-t">Check SDK data persistence after user logout</div>
+          <div class="ci-d">Log out of the app and compare the data directory before and after. SDK data that persists after logout constitutes a privacy violation — especially if it includes identifiers or behavioural profiles.</div>
+        </div>
+        <div class="ci-right"><span class="tool-chip">adb diff</span></div>
+      </div>
+    </div>
+
+    <div class="term">
+      <div class="term-bar">
+        <div class="term-dots"><span></span><span></span><span></span></div>
+        <span class="term-fname">cat05-storage.sh</span>
+      </div>
+      <div class="term-body">
+        <div class="tl"><span class="co"># Pull entire app data directory (requires root or run-as)</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">adb shell run-as </span><span class="ar">com.target.app</span><span class="cm"> tar -cz /data/data/com.target.app \</span></div>
+        <div class="tl"><span class="ps"> </span><span class="cm">  | adb shell cat > /sdcard/app_data.tar.gz</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">adb pull /sdcard/app_data.tar.gz && tar -xzf app_data.tar.gz</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># Inspect all SQLite databases</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">find ./app_data </span><span class="fl">-name</span><span class="ar"> "*.db"</span><span class="cm"> -exec sqlite3 {} </span><span class="cs">".tables"</span><span class="cm"> \;</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">sqlite3 ./app_data/sdk_events.db </span><span class="cs">"SELECT * FROM events LIMIT 10;"</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="to-line to-bad">1|page_view|{"email":"user@example.com","lat":37.77,"lon":-122.41}|2024-03-15</div>
+        <div class="to-line to-bad">2|session  |{"imei":"358976081234","clipboard":"visa 4111111111111111"}|2024-03-15</div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="tl"><span class="co"># Scan SharedPreferences for tokens and keys</span></div>
+        <div class="tl"><span class="ps">$</span><span class="cm">grep </span><span class="fl">-rni</span><span class="ar"> "token\|key\|secret\|email\|password\|auth"</span><span class="cm"> ./app_data/shared_prefs/</span></div>
+        <div class="tl"><span class="ps"> </span></div>
+        <div class="to-line to-bad">sdk_prefs.xml: &lt;string name="sdk_auth_token"&gt;eyJhbGciOiJ...&lt;/string&gt;</div>
+        <div class="to-line to-bad">sdk_prefs.xml: &lt;string name="user_email"&gt;user@example.com&lt;/string&gt;</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hr"><span class="hr-t">// CAT-06–10 · REMAINING CATEGORIES</span></div>
+
+  <!-- ── CAT 06-10 ── -->
+  <section class="S reveal" id="cat0610">
+    <div class="s-tag"><span class="s-id">CAT-06 → CAT-10</span></div>
+    <div class="s-h">Remaining Assessment Categories</div>
+    <p class="s-sub">Five additional critical areas required for a complete SDK security assessment.</p>
+
+    <table class="dtable">
+      <thead>
+        <tr><th>Category</th><th>Key Tests</th><th>Tools</th><th>Risk</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>CAT-06: Permission Analysis</td>
+          <td>Diff declared permissions in merged manifest vs. runtime usage. Use <code>aapt2 dump permissions</code> to list SDK-injected permissions. Flag <code>ACCESS_FINE_LOCATION</code>, <code>READ_CONTACTS</code>, or <code>READ_CALL_LOG</code> in analytics or advertising SDKs. Strip unnecessary permissions via <code>tools:node="remove"</code>.</td>
+          <td><code>aapt2</code>, MobSF</td>
+          <td><span class="sev sh">High</span></td>
+        </tr>
+        <tr>
+          <td>CAT-07: SDK Update Mechanism</td>
+          <td>Intercept SDK update channel traffic. Verify updates are signed and signatures are verified before execution. Test if the update endpoint accepts unsigned payloads. A hot-update SDK that doesn't verify signatures is a persistent RCE backdoor.</td>
+          <td>mitmproxy, Frida</td>
+          <td><span class="sev sc">Critical</span></td>
+        </tr>
+        <tr>
+          <td>CAT-08: Anti-Analysis &amp; Native Code</td>
+          <td>Test if SDK detects Frida, root, or debugger and alters behaviour. Attempt deobfuscation using Simplify or DeGuard. For JNI .so libraries, extract and load in Ghidra for binary analysis. Check for obfuscated URL construction.</td>
+          <td>Ghidra, Simplify</td>
+          <td><span class="sev sm">Medium</span></td>
+        </tr>
+        <tr>
+          <td>CAT-09: Privacy Compliance</td>
+          <td>Map all collected data against the app's published privacy policy. Test GDPR opt-out and CCPA deletion flows — after opting out, verify the SDK actually stops data transmission via network monitoring. Confirm IDFA/GAID collection requires ATT consent on iOS.</td>
+          <td>mitmproxy, Burp</td>
+          <td><span class="sev sh">High</span></td>
+        </tr>
+        <tr>
+          <td>CAT-10: SDK-to-SDK Data Sharing</td>
+          <td>Check if SDKs share data via implicit Broadcast Intents, shared SharedPreferences, or ContentProviders. Use logcat monitoring and Frida hooks on <code>sendBroadcast()</code> to detect cross-SDK data flows. Test if one SDK can read another SDK's stored files.</td>
+          <td>Frida, logcat</td>
+          <td><span class="sev sh">High</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <div class="hr"><span class="hr-t">// SECURE vs VULNERABLE</span></div>
+
+  <!-- ── VS ── -->
+  <section class="S reveal" id="comparison">
+    <div class="s-tag"><span class="s-id">ANALYSIS</span></div>
+    <div class="s-h">Secure vs Vulnerable SDK Integration</div>
+
+    <div class="vs">
+      <div class="vs-p vs-bad">
+        <div class="vs-h">❌ Vulnerable — SDK relaxes Network Security Config</div>
+        <div class="vs-code">
+          &lt;!-- SDK merged this into your AndroidManifest --&gt;<br>
+          &lt;application<br>
+          &nbsp;android:usesCleartextTraffic="true"&gt;<br><br>
+          &lt;!-- network_security_config.xml --&gt;<br>
+          &lt;base-config&gt;<br>
+          &nbsp;&lt;trust-anchors&gt;<br>
+          &nbsp;&nbsp;&lt;!-- SDK forced: trust user CAs --&gt;<br>
+          &nbsp;&nbsp;&lt;certificates src="user"/&gt;<br>
+          &nbsp;&lt;/trust-anchors&gt;<br>
+          &lt;/base-config&gt;<br>
+          &lt;!-- Now any proxy cert is trusted 🚩 --&gt;
+        </div>
+      </div>
+      <div class="vs-p vs-good">
+        <div class="vs-h">✅ Secure — Explicit hardened config</div>
+        <div class="vs-code">
+          &lt;!-- network_security_config.xml --&gt;<br>
+          &lt;network-security-config&gt;<br>
+          &nbsp;&lt;base-config<br>
+          &nbsp;&nbsp;cleartextTrafficPermitted="false"&gt;<br>
+          &nbsp;&nbsp;&lt;trust-anchors&gt;<br>
+          &nbsp;&nbsp;&nbsp;&lt;certificates src="system"/&gt;<br>
+          &nbsp;&nbsp;&lt;/trust-anchors&gt;<br>
+          &nbsp;&lt;/base-config&gt;<br>
+          &lt;/network-security-config&gt;<br>
+          &lt;!-- No user CAs, no HTTP anywhere --&gt;
+        </div>
+      </div>
+    </div>
+
+    <div class="vs" style="margin-top:1px">
+      <div class="vs-p vs-bad">
+        <div class="vs-h">❌ Vulnerable — Excess permissions from SDK</div>
+        <div class="vs-code">
+          &lt;!-- SDK injected into merged manifest --&gt;<br>
+          &lt;uses-permission android:name=<br>
+          &nbsp;"android.permission.READ_CONTACTS"/&gt;<br>
+          &lt;uses-permission android:name=<br>
+          &nbsp;"android.permission.ACCESS_FINE_LOCATION"/&gt;<br>
+          &lt;uses-permission android:name=<br>
+          &nbsp;"android.permission.READ_CALL_LOG"/&gt;<br><br>
+          &lt;!-- These are for an analytics SDK 🚩 --&gt;
+        </div>
+      </div>
+      <div class="vs-p vs-good">
+        <div class="vs-h">✅ Secure — Strip SDK permission overreach</div>
+        <div class="vs-code">
+          &lt;!-- Explicitly revoke in app's manifest --&gt;<br>
+          &lt;uses-permission<br>
+          &nbsp;android:name=<br>
+          &nbsp;"android.permission.READ_CONTACTS"<br>
+          &nbsp;tools:node="remove"/&gt;<br><br>
+          &lt;uses-permission<br>
+          &nbsp;android:name=<br>
+          &nbsp;"android.permission.READ_CALL_LOG"<br>
+          &nbsp;tools:node="remove"/&gt;<br>
+          &lt;!-- Merged build honours these removals --&gt;
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="hr"><span class="hr-t">// REMEDIATION</span></div>
+
+  <!-- ── REMEDIATION ── -->
+  <section class="S reveal" id="remediation">
+    <div class="s-tag"><span class="s-id">REMEDIATION</span></div>
+    <div class="s-h">Remediation Controls</div>
+
+    <table class="dtable">
+      <thead>
+        <tr><th>Control</th><th>Implementation</th><th>Addresses</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Version pinning &amp; CVE alerting</td>
+          <td>Pin exact SDK versions — never use dynamic ranges (<code>+</code>). Integrate osv-scanner into CI to block builds with known-vulnerable SDK versions. Subscribe to vendor security advisories. Review changelog before any upgrade.</td>
+          <td>CAT-01, CAT-07</td>
+        </tr>
+        <tr>
+          <td>Secret rotation and removal</td>
+          <td>Immediately rotate any API key found hardcoded in an SDK binary. Implement server-side key scoping so rotated keys have minimal permissions. Move credentials to server-side proxies — no API keys should ever exist in a mobile binary.</td>
+          <td>CAT-02</td>
+        </tr>
+        <tr>
+          <td>Network Security Config hardening</td>
+          <td>Set <code>cleartextTrafficPermitted="false"</code> globally. Trust only system CAs. Never allow user CA trust in production. Audit the merged manifest after each SDK update — SDKs can re-inject relaxations silently.</td>
+          <td>CAT-03</td>
+        </tr>
+        <tr>
+          <td>Minimal SDK initialisation</td>
+          <td>Delay all SDK <code>init()</code> calls until user has granted informed consent. Pass only required parameters. Never blindly follow SDK quickstart samples — they maximise data collection, not privacy.</td>
+          <td>CAT-09</td>
+        </tr>
+        <tr>
+          <td>Permission stripping</td>
+          <td>After every SDK integration, audit the merged manifest diff. Use <code>tools:node="remove"</code> to explicitly revoke permissions injected by SDKs that your app doesn't need. Document each removal decision.</td>
+          <td>CAT-06</td>
+        </tr>
+        <tr>
+          <td>SDK process isolation</td>
+          <td>Run high-risk SDKs (ad networks, analytics) in a separate Android process using <code>android:process</code>. Use IPC boundaries to limit what app data each SDK process can access.</td>
+          <td>CAT-10</td>
+        </tr>
+        <tr>
+          <td>Continuous assessment cadence</td>
+          <td>Re-run CAT-01 (inventory + CVE scan) on every SDK version bump. Re-run full assessment (CAT-01 through CAT-10) on major SDK upgrades, after security incidents, and at minimum annually.</td>
+          <td>All</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout ca-t">
+      <span class="ca-icon">✅</span>
+      <div class="ca-body"><strong>Highest ROI single action:</strong> Run MobSF automated scan on every new SDK version before integrating it. Five minutes of automated scanning catches hardcoded secrets, dangerous permission requests, insecure crypto, and exported component vulnerabilities — before they reach production users.</div>
+    </div>
+  </section>
+
+  <div class="hr"><span class="hr-t">// TOOLKIT</span></div>
+
+  <!-- ── TOOLS ── -->
+  <section class="S reveal" id="tools">
+    <div class="s-tag"><span class="s-id">TOOLKIT</span></div>
+    <div class="s-h">Assessment Toolkit</div>
+
+    <table class="dtable">
+      <thead>
+        <tr><th>Tool</th><th>Platform</th><th>Primary Use</th><th>Install</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MobSF</td>
+          <td>Android / iOS</td>
+          <td>Automated static + dynamic analysis, CVE detection, permission audit</td>
+          <td><code>docker run -p 8000:8000 opensecurity/mobile-security-framework-mobsf</code></td>
+        </tr>
+        <tr>
+          <td>Frida</td>
+          <td>Android / iOS</td>
+          <td>Runtime method hooking, pre-encryption data interception, bypass</td>
+          <td><code>pip install frida-tools</code></td>
+        </tr>
+        <tr>
+          <td>objection</td>
+          <td>Android / iOS</td>
+          <td>SSL pinning bypass, keychain dump, filesystem exploration, memory analysis</td>
+          <td><code>pip install objection</code></td>
+        </tr>
+        <tr>
+          <td>jadx</td>
+          <td>Android</td>
+          <td>APK decompilation to readable Java/Kotlin source code</td>
+          <td><code>brew install jadx</code></td>
+        </tr>
+        <tr>
+          <td>apktool</td>
+          <td>Android</td>
+          <td>APK disassembly to smali, manifest extraction, resource decoding</td>
+          <td><code>brew install apktool</code></td>
+        </tr>
+        <tr>
+          <td>mitmproxy</td>
+          <td>Android / iOS</td>
+          <td>Interactive HTTPS interception, SDK traffic analysis, request tampering</td>
+          <td><code>pip install mitmproxy</code></td>
+        </tr>
+        <tr>
+          <td>osv-scanner</td>
+          <td>Android / iOS</td>
+          <td>CVE scanning against the Open Source Vulnerability database (Google)</td>
+          <td><code>go install github.com/google/osv-scanner/cmd/osv-scanner@latest</code></td>
+        </tr>
+        <tr>
+          <td>truffleHog</td>
+          <td>Android / iOS</td>
+          <td>Verified secret detection in decompiled source (API keys, tokens)</td>
+          <td><code>pip install trufflehog</code></td>
+        </tr>
+        <tr>
+          <td>Ghidra</td>
+          <td>Android / iOS</td>
+          <td>Binary analysis of native .so libraries bundled in SDKs</td>
+          <td>ghidra.re</td>
+        </tr>
+        <tr>
+          <td>syft</td>
+          <td>Android / iOS</td>
+          <td>SBOM generation in SPDX / CycloneDX for SDK inventory baseline</td>
+          <td><code>brew install syft</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</article>
+
+<!-- ── TOC SIDEBAR ── -->
+<aside>
+  <nav class="toc">
+    <div class="toc-top">
+      <div class="toc-indicator"></div>
+      <span class="toc-top-label">Contents</span>
+    </div>
+    <div class="toc-list">
+      <a href="#intro"><span class="ti">00</span>Introduction</a>
+      <a href="#cat01"><span class="ti">01</span>SDK Inventory</a>
+      <a href="#cat02"><span class="ti">02</span>Static Analysis</a>
+      <a href="#cat03"><span class="ti">03</span>Network Interception</a>
+      <a href="#cat04"><span class="ti">04</span>Runtime Analysis (Frida)</a>
+      <a href="#cat05"><span class="ti">05</span>Data Storage</a>
+      <a href="#cat0610"><span class="ti">06</span>Permissions &amp; More</a>
+      <a href="#comparison"><span class="ti">07</span>Secure vs Vulnerable</a>
+      <a href="#remediation"><span class="ti">08</span>Remediation</a>
+      <a href="#tools"><span class="ti">09</span>Toolkit</a>
+    </div>
+  </nav>
+</aside>
+
+</div>
+</div>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="f-id">SDK_AUDIT_CHECKLIST // MOBILE_APPSEC // MASVS_ALIGNED</div>
+  <ul class="f-links">
+    <li><a href="https://mas.owasp.org/MASVS/" target="_blank">OWASP MASVS</a></li>
+    <li><a href="https://mas.owasp.org/MASTG/" target="_blank">OWASP MASTG</a></li>
+    <li><a href="https://frida.re" target="_blank">Frida</a></li>
+    <li><a href="https://github.com/opensecurity/mobile-security-framework-mobsf" target="_blank">MobSF</a></li>
+  </ul>
+</footer>
+
+<script>
+// ── PROGRESS ──
+window.addEventListener('scroll', () => {
+  const pct = window.scrollY / (document.documentElement.scrollHeight - window.innerHeight) * 100;
+  document.getElementById('prog').style.width = pct + '%';
+});
+
+// ── SCROLL REVEAL ──
+const obs = new IntersectionObserver(entries => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('vis'), i * 60);
+    }
+  });
+}, { threshold: 0.07 });
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+// ── TOC ACTIVE ──
+const secs  = document.querySelectorAll('.S[id]');
+const tocAs = document.querySelectorAll('.toc-list a');
+
+const tObs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      tocAs.forEach(a => a.classList.remove('on'));
+      const a = document.querySelector(`.toc-list a[href="#${e.target.id}"]`);
+      if (a) a.classList.add('on');
+    }
+  });
+}, { threshold: 0.3 });
+secs.forEach(s => tObs.observe(s));
+
+// ── SCANNING ROWS ANIMATION CYCLE ──
+// Rotate which rows appear "actively scanning"
+const rows = document.querySelectorAll('.sdk-audit-row');
+let scanIdx = 0;
+setInterval(() => {
+  rows.forEach(r => r.classList.remove('scanning'));
+  if (rows[scanIdx]) rows[scanIdx].classList.add('scanning');
+  scanIdx = (scanIdx + 1) % rows.length;
+}, 1800);
+</script>
+</body>
+</html>
