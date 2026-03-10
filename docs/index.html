@@ -3,100 +3,176 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coming Soon | Som's AppSec Hub</title>
+<title>Docs | Som's AppSec Knowledge Hub</title>
 
 <style>
+    :root {
+        --bg: #0f172a;
+        --card-bg: #020617;
+        --text: #e2e8f0;
+        --text-secondary: #94a3b8;
+        --accent: #38bdf8;
+        --border: #1e293b;
+        --hover: #0284c7;
+    }
 
-body{
-    margin:0;
-    font-family:Segoe UI, Arial, sans-serif;
-    background:#0f172a;
-    color:#e2e8f0;
-}
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
 
-/* Navbar */
+    body {
+        font-family: Segoe UI, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+    }
 
-.navbar{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:15px 60px;
-    background:#020617;
-    border-bottom:1px solid #1e293b;
-}
+    /* Navbar */
+    .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 60px;
+        background: #020617;
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+    }
 
-.logo{
-    font-size:20px;
-    font-weight:bold;
-    color:#38bdf8;
-}
+    .logo {
+        font-size: 22px;
+        font-weight: bold;
+        color: var(--accent);
+    }
 
-.nav-links a{
-    margin-left:25px;
-    text-decoration:none;
-    color:#cbd5f5;
-    font-size:15px;
-}
+    .nav-links a {
+        margin-left: 28px;
+        text-decoration: none;
+        color: #cbd5f5;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
 
-.nav-links a:hover{
-    color:#38bdf8;
-}
+    .nav-links a:hover {
+        color: var(--accent);
+    }
 
-/* Center Section */
+    /* Header */
+    .header {
+        text-align: center;
+        padding: 80px 20px 60px;
+        background: linear-gradient(to bottom, rgba(15,23,42,0.8), var(--bg));
+    }
 
-.main{
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    height:80vh;
-    text-align:center;
-}
+    .header h1 {
+        font-size: 42px;
+        margin-bottom: 12px;
+    }
 
-.main h1{
-    font-size:48px;
-    margin-bottom:10px;
-}
+    .header p {
+        font-size: 18px;
+        color: var(--text-secondary);
+        max-width: 680px;
+        margin: 0 auto;
+    }
 
-.main p{
-    font-size:20px;
-    color:#94a3b8;
-}
+    /* Main Content */
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px 60px;
+    }
 
-.home-btn{
-    margin-top:30px;
-    padding:12px 25px;
-    background:#38bdf8;
-    border:none;
-    color:white;
-    font-size:16px;
-    border-radius:6px;
-    cursor:pointer;
-}
+    .docs-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 28px;
+        margin-top: 40px;
+    }
 
-.home-btn:hover{
-    background:#0284c7;
-}
+    .doc-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 28px 24px;
+        transition: all 0.25s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
 
-/* Footer */
+    .doc-card:hover {
+        transform: translateY(-6px);
+        border-color: var(--accent);
+        box-shadow: 0 12px 32px rgba(56, 189, 248, 0.12);
+    }
 
-.footer{
-    text-align:center;
-    padding:20px;
-    border-top:1px solid #1e293b;
-    color:#64748b;
-}
+    .doc-card h3 {
+        margin: 0 0 12px 0;
+        font-size: 22px;
+        color: var(--text);
+    }
 
+    .doc-card p {
+        color: var(--text-secondary);
+        font-size: 15px;
+        margin-bottom: 20px;
+        flex-grow: 1;
+    }
+
+    .doc-card a {
+        display: inline-block;
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+    .doc-card a:hover {
+        color: #60a5fa;
+        text-decoration: underline;
+    }
+
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 32px 20px;
+        border-top: 1px solid var(--border);
+        color: #64748b;
+        font-size: 14px;
+        margin-top: 60px;
+    }
+
+    @media (max-width: 768px) {
+        .navbar {
+            padding: 15px 25px;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .nav-links a {
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+
+        .header {
+            padding: 60px 20px 40px;
+        }
+
+        .header h1 {
+            font-size: 34px;
+        }
+    }
 </style>
-
 </head>
-
 <body>
 
 <!-- Navbar -->
-
 <div class="navbar">
-    <div class="logo">Som AppSec Hub</div>
+    <div class="logo">Som's AppSec Hub</div>
 
     <div class="nav-links">
         <a href="/">Home</a>
@@ -106,24 +182,44 @@ body{
     </div>
 </div>
 
-<!-- Coming Soon Section -->
+<!-- Header -->
+<div class="header">
+    <h1>Knowledge Base & Documentation</h1>
+    <p>Practical guides, checklists, methodologies and reference materials for Application Security, Cloud Security, AI/ML Security and Red Teaming</p>
+</div>
 
-<div class="main">
+<!-- Main Content -->
+<div class="container">
 
-<h1>🚧 Coming up...</h1>
+    <div class="docs-grid">
 
-<p>Stay tuned. Exciting AppSec content is on the way.</p>
+        <!-- Card 1 -->
+        <div class="doc-card">
+            <h3>LLM Penetration Testing Guide</h3>
+            <p>Complete OWASP LLM Top 10 walkthrough — prompt injection, model theft, excessive agency, insecure output handling, supply chain, sensitive info disclosure, and more. Includes payloads and detection/remediation tips.</p>
+            <a href="The Complete LLM Penetration Testing Guide.html">Open Guide →</a>
+        </div>
 
-<button class="home-btn" onclick="location.href='/'">
-Back to Home
-</button>
+        <!-- Card 2 -->
+        <div class="doc-card">
+            <h3>LLM Penetration Testing Checklist</h3>
+            <p>A Comprehensive Checklist for Pentest of AI Integrated Applications </p>
+            <a href="JWT Security Testing Guide.html">Open Guide →</a>
+        </div>
+
+
+
+        <!-- Add more cards as needed -->
+        <!-- Example placeholder card -->
+
+
+    </div>
 
 </div>
 
 <!-- Footer -->
-
 <div class="footer">
-<p>© 2026 Som's AppSec Knowledge Hub</p>
+    <p>© 2026 Som's AppSec Knowledge Hub • Bengaluru, India</p>
 </div>
 
 </body>
