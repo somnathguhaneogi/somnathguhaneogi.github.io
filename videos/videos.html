@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Videos | Som's AppSec Hub</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Segoe UI, Arial, sans-serif;
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+/* Navbar */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 60px;
+    background: #020617;
+    border-bottom: 1px solid #1e293b;
+}
+.logo {
+    font-size: 20px;
+    font-weight: bold;
+    color: #38bdf8;
+}
+.nav-links a {
+    margin-left: 25px;
+    text-decoration: none;
+    color: #cbd5f5;
+}
+.nav-links a:hover {
+    color: #38bdf8;
+}
+.nav-links a.active {
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    padding: 90px 20px 60px;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+.header h1 {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+.header p {
+    font-size: 18px;
+    color: #94a3b8;
+    max-width: 680px;
+    margin: 0 auto;
+}
+
+/* Video Section */
+.section {
+    padding: 40px 20px 80px;
+}
+.video-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 30px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.video-card {
+    background: #020617;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    overflow: hidden;
+    width: 360px;
+    transition: 0.3s;
+    position: relative;
+}
+.video-card:hover {
+    transform: translateY(-8px);
+    border-color: #38bdf8;
+    box-shadow: 0 10px 30px rgba(56,189,248,0.15);
+}
+.video-card:hover .thumbnail img {
+    transform: scale(1.08);
+}
+
+.thumbnail {
+    height: 200px;
+    overflow: hidden;
+    position: relative;
+}
+.thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+.play-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 60px;
+    color: rgba(255,255,255,0.85);
+    opacity: 0.9;
+    transition: opacity 0.3s;
+}
+.video-card:hover .play-icon {
+    opacity: 1;
+}
+
+.video-info {
+    padding: 20px;
+}
+.video-info h3 {
+    margin: 0 0 10px;
+    font-size: 20px;
+    color: #e0f2fe;
+    line-height: 1.4;
+}
+.video-info p {
+    color: #94a3b8;
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.video-info .meta {
+    font-size: 13px;
+    color: #64748b;
+}
+.video-info a {
+    text-decoration: none;
+    color: #38bdf8;
+    font-weight: 500;
+    display: inline-block;
+    margin-top: 8px;
+}
+.video-info a:hover {
+    color: #67e8f9;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 35px;
+    border-top: 1px solid #1e293b;
+    color: #64748b;
+    font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- Navbar -->
+<div class="navbar">
+    <div class="logo">Som's AppSec Hub</div>
+    <div class="nav-links">
+        <a href="/index.html">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="/videos/videos.html" class="active">Videos</a>
+        <a href="/docs/">Docs</a>
+    </div>
+</div>
+
+<!-- Header -->
+<div class="header">
+    <h1>YouTube Videos</h1>
+    <p>Practical AppSec tutorials, red team techniques, LLM pentesting walkthroughs, bug bounty tips, and more.<br>
+    Follow for the latest offensive security content.</p>
+</div>
+
+<!-- Video Grid -->
+<div class="section">
+    <div class="video-grid">
+
+        <!-- Video 1 -->
+        <div class="video-card">
+            
+            <div class="video-info">
+                <h3>
+How to Jailbreak AI & Use it for Hacking | ChatGPT 5 | Gemini 2.5 Pro | Claude</h3>
+                <p>This video will teach you how to jailbreak  the latest version of OpenAI ChatGPT 5, Google Gemini 2.5 Pro and Claude! </p>
+                <div class="meta">• 36 min • 118K views • Oct 2025</div>
+                <a href="https://www.youtube.com/watch?v=hlKVvCwDZf4" target="_blank">Watch on YouTube →</a>
+            </div>
+        </div>
+
+        <!-- Video 2 -->
+        <div class="video-card">
+            <div class="video-info">
+                <h3>Run YOUR own UNCENSORED AI & Use it for Hacking</h3>
+                <p></p>
+                <div class="meta">• 26 min • 234K views • Jan 2026</div>
+                <a href="https://www.youtube.com/watch?v=XvGeXQ7js_o" target="_blank">Watch on YouTube →</a>
+            </div>
+        </div>
+
+        <!-- Video 3 -->
+        <div class="video-card">
+            <div class="video-info">
+                <h3>RoguePrompt Dual Layer Ciphering for Self Reconstruction</h3>
+                <p></p>
+                <div class="meta">• 4 min • 3 views • Feb 2026</div>
+                <a href="https://www.youtube.com/watch?v=gwiSiigAZKk" target="_blank">Watch on YouTube →</a>
+            </div>
+        </div>
+
+        <!-- Video 4 -->
+        <div class="video-card">
+            <div class="video-info">
+                <h3>How Agentic AI Is Redefining Offensive Security</h3>
+                <p>Find out why traditional security tests, based on decision trees programmed by engineers, struggle with edge cases and custom web applications. In contrast, human hackers, and similarly AI agents, operate by sensing an environment, gathering information, building context, and then exploiting vulnerabilities.</p>
+                <div class="meta">• 14 min • 1.6K views • Jan 2026</div>
+                <a href="https://www.youtube.com/watch?v=XztRMsCFBYU" target="_blank">Watch on YouTube →</a>
+            </div>
+        </div>
+
+        <!-- Add more cards as needed -->
+
+    </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+    <p>© 2026 Som's AppSec Knowledge Hub • YouTube Channel</p>
+</div>
+
+</body>
+</html>
