@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SBOM with open source tools • AppSec blog</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f2f5f9;
+      line-height: 1.6;
+      color: #1e293b;
+      padding: 2rem 1rem;
+    }
+
+    .blog-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 20px 40px -12px rgba(0,0,0,0.15);
+      overflow: hidden;
+      padding: 2.5rem 2.8rem;
+    }
+
+    @media (max-width: 600px) {
+      .blog-container { padding: 1.5rem; }
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      background: linear-gradient(145deg, #0b2b3b, #1d4e6f);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .subhead {
+      font-size: 1.3rem;
+      font-weight: 400;
+      color: #475569;
+      border-left: 4px solid #3b82f6;
+      padding-left: 1.2rem;
+      margin: 1rem 0 1.5rem 0;
+    }
+
+    .byline {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      color: #64748b;
+      font-size: 0.95rem;
+      border-bottom: 1px solid #e9eef2;
+      padding-bottom: 1.2rem;
+      margin-bottom: 2rem;
+    }
+
+    .byline .tag {
+      background: #e6f0ff;
+      color: #1e4a7a;
+      padding: 0.2rem 0.7rem;
+      border-radius: 20px;
+      font-weight: 500;
+      font-size: 0.8rem;
+    }
+
+    h2 {
+      font-size: 1.9rem;
+      font-weight: 600;
+      margin: 2.5rem 0 1rem;
+      border-bottom: 3px solid #e2e8f0;
+      padding-bottom: 0.4rem;
+    }
+
+    h3 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin: 2rem 0 0.8rem;
+      color: #0f2b3d;
+    }
+
+    p {
+      margin-bottom: 1.25rem;
+      color: #2d3a4f;
+    }
+
+    a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    blockquote {
+      background: #f0f7ff;
+      border-left: 5px solid #2271b1;
+      padding: 1.2rem 1.8rem;
+      margin: 1.8rem 0;
+      border-radius: 0 12px 12px 0;
+      font-style: normal;
+    }
+
+    blockquote p {
+      margin-bottom: 0.3rem;
+    }
+
+    blockquote strong {
+      color: #05445e;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 2rem 0;
+      font-size: 0.95rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+
+    th {
+      background: #eaf1fb;
+      font-weight: 600;
+      padding: 12px 10px;
+      border: 1px solid #cbd5e1;
+    }
+
+    td {
+      padding: 10px;
+      border: 1px solid #dde3e9;
+      vertical-align: top;
+    }
+
+    td:first-child {
+      font-weight: 500;
+      background-color: #f9fbfd;
+    }
+
+    .check-yes {
+      color: #1f7b4d;
+      font-weight: 600;
+    }
+
+    .image-placeholder {
+      background: #f1f5f9;
+      border: 2px dashed #a0b8cc;
+      border-radius: 20px;
+      padding: 2rem 1rem;
+      text-align: center;
+      margin: 2.2rem 0;
+      color: #416582;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 1rem;
+      transition: 0.1s;
+    }
+
+    .image-placeholder span {
+      background: #d9e2ef;
+      padding: 0.3rem 1.2rem;
+      border-radius: 40px;
+      font-size: 0.9rem;
+      color: #1e405e;
+    }
+
+    .code-block {
+      background: #0f1a24;
+      color: #e4f0fb;
+      padding: 1.3rem 1.5rem;
+      border-radius: 16px;
+      overflow-x: auto;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin: 1.8rem 0;
+      box-shadow: inset 0 0 0 1px #2b4055;
+    }
+
+    .code-block code {
+      color: #c9e6ff;
+      background: transparent;
+      padding: 0;
+    }
+
+    .code-block .prompt {
+      color: #94a3b8;
+      user-select: none;
+    }
+
+    .inline-code {
+      background: #e9f0f9;
+      color: #15445c;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+
+    hr {
+      border: none;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #b3c4d4, transparent);
+      margin: 2.5rem 0;
+    }
+
+    .tool-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem 1.2rem;
+      justify-content: center;
+      background: #f2f7fd;
+      padding: 1.5rem;
+      border-radius: 40px;
+      margin: 2rem 0;
+    }
+
+    .tool-item {
+      background: white;
+      border-radius: 40px;
+      padding: 0.5rem 1.5rem;
+      font-weight: 500;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+      border: 1px solid #cbd9ea;
+      color: #1d4d7c;
+    }
+
+    .footnote-links {
+      background: #f6faff;
+      border-radius: 24px;
+      padding: 1.8rem;
+      margin-top: 2.5rem;
+      border: 1px solid #cdddec;
+    }
+
+    .footnote-links p {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+<div class="blog-container">
+  
+  <h1>Software Bill of Materials Using Open Source Tools</h1>
+  <div class="subhead">A practical guide to generating, managing, and integrating SBOMs into your CI/CD pipeline — without spending a dollar on commercial tooling.</div>
+  
+  <div class="byline">
+    <span>📅 May 2025</span>
+    <span>⏱️ 15 min read</span>
+    <span class="tag">DevSecOps</span>
+    <span class="tag">Supply Chain Security</span>
+  </div>
+
+  <p><em>In the wake of high-profile supply chain attacks, regulators and enterprises alike now expect software producers to provide a detailed list of ingredients in every release. Enter the Software Bill of Materials — and an ecosystem of powerful open source tools ready to generate one.</em></p>
+
+  <p>The term <strong>SBOM</strong> (pronounced "S-bomb") refers to a structured, machine-readable inventory of all the components, libraries, and dependencies that make up a piece of software. Think of it as a nutritional label for your application: it tells consumers exactly what's inside, where it came from, and whether any known vulnerabilities are lurking in the mix.</p>
+
+  <p>With the U.S. Executive Order 14028 on Improving the Nation's Cybersecurity and frameworks like NTIA minimum elements now shaping procurement requirements, generating an SBOM is rapidly shifting from optional best-practice to contractual obligation. The good news? The open source ecosystem has kept pace.</p>
+
+  <h2>Why SBOMs matter</h2>
+  <p>Modern applications are largely composed of open source packages. A typical Node.js web application might have a <span class="inline-code">package-lock.json</span> with hundreds of transitive dependencies — libraries your code depends on, that depend on other libraries, that depend on yet more libraries. When a critical CVE is published (think Log4Shell, or XZ Utils), you need to know immediately: <em>am I affected?</em></p>
+
+  <blockquote>
+    <p><strong>Key insight:</strong> Without an SBOM, answering "do we use Log4j anywhere?" requires manually auditing every codebase. With an SBOM in a centralised store, it becomes a five-second query.</p>
+  </blockquote>
+
+  <p><strong>SBOMs enable three critical capabilities:</strong></p>
+  <ul>
+    <li><strong>Vulnerability response</strong> — rapidly identify which of your products are impacted when a new CVE drops.</li>
+    <li><strong>License compliance</strong> — ensure no copyleft-licensed component sneaks into a proprietary product.</li>
+    <li><strong>Provenance attestation</strong> — prove to customers and auditors exactly what software you shipped.</li>
+  </ul>
+
+  <h2>SBOM formats: CycloneDX vs SPDX</h2>
+  <p>Before reaching for a tool, you need to decide on a format. Two standards dominate the landscape:</p>
+
+  <table>
+    <thead>
+      <tr><th>Feature</th><th>CycloneDX</th><th>SPDX</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Maintained by</td><td>OWASP</td><td>Linux Foundation</td></tr>
+      <tr><td>Primary focus</td><td>Security / VEX</td><td>Licensing / compliance</td></tr>
+      <tr><td>Output formats</td><td>JSON, XML, Protobuf</td><td>JSON, YAML, RDF, tag-value</td></tr>
+      <tr><td>VEX support</td><td><span class="check-yes">✓ Native</span></td><td>~ Limited</td></tr>
+      <tr><td>NTIA minimum elements</td><td><span class="check-yes">✓ Full</span></td><td><span class="check-yes">✓ Full</span></td></tr>
+      <tr><td>Tool ecosystem</td><td>Very broad</td><td>Broad</td></tr>
+      <tr><td>Government/regulated use</td><td>Widely accepted</td><td>DoD, FDA preferred</td></tr>
+    </tbody>
+  </table>
+
+  <p>For most teams, <strong>CycloneDX</strong> is the pragmatic starting point — it has broader tool support and native VEX (Vulnerability Exploitability eXchange) integration. If you are targeting government or pharmaceutical supply chains, consider generating both formats or defaulting to SPDX.</p>
+
+  <h2>The open source toolchain</h2>
+  <p>A mature SBOM workflow involves generation, enrichment, storage, and continuous scanning. Here is how the major open source tools map to each stage:</p>
+
+  <!-- Image placeholder for media/image1.png (toolchain diagram) -->
+  <div class="image-placeholder">
+    <span>🔍 TOOLCHAIN MAP (media/image1.png)</span><br>
+    <div style="margin-top:1rem; font-size:0.9rem; display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center;">
+      <span class="tool-item">Syft (gen)</span>
+      <span class="tool-item">cdxgen (gen)</span>
+      <span class="tool-item">Grype (scan)</span>
+      <span class="tool-item">Dep-Track (monitor)</span>
+      <span class="tool-item">Cosign (sign)</span>
+    </div>
+    <p style="margin-top:0.8rem; color:#6688aa;">Generation → Scanning → Enrichment → Storage → Continuous monitoring</p>
+  </div>
+
+  <h3>Generating your first SBOM with Syft</h3>
+  <p><strong>Syft</strong> is arguably the fastest path from zero to a valid SBOM. It can analyze a local directory, a container image, an OCI archive, or even a running container — and emit CycloneDX or SPDX output in seconds.</p>
+
+  <p><strong>Installation</strong></p>
+  <div class="code-block">
+    <code><span class="prompt"># curl installer (official recommended method)</span><br>
+curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin<br>
+<br>
+<span class="prompt"># Homebrew (macOS)</span><br>
+brew install syft<br>
+<br>
+<span class="prompt"># Verify</span><br>
+syft version</code>
+  </div>
+
+  <p><strong>Scanning a container image</strong></p>
+  <div class="code-block">
+    <code><span class="prompt"># Output CycloneDX JSON to stdout</span><br>
+syft nginx:latest -o cyclonedx-json<br>
+<br>
+<span class="prompt"># Write to a file (recommended for CI)</span><br>
+syft myapp:v2.1.0 -o cyclonedx-json=sbom.cdx.json -o spdx-json=sbom.spdx.json<br>
+<br>
+<span class="prompt"># Scan a local project directory</span><br>
+syft dir:./my-app -o cyclonedx-json=sbom.cdx.json</code>
+  </div>
+
+  <h3>Scanning with cdxgen (source-level)</h3>
+  <p>While Syft excels at container image analysis, <strong>cdxgen</strong> performs deeper source-level analysis, resolving multi-module builds and lockfile-precise dependency trees — particularly valuable for Java, Gradle, and Maven projects.</p>
+
+  <div class="code-block">
+    <code><span class="prompt"># Install via npm</span><br>
+npm install -g @cyclonedx/cdxgen<br>
+<br>
+<span class="prompt"># Generate for a Node.js project</span><br>
+cdxgen -t nodejs -o bom.json ./my-node-app<br>
+<br>
+<span class="prompt"># Java (Maven)</span><br>
+cdxgen -t maven -o bom.json ./my-java-app<br>
+<br>
+<span class="prompt"># Python</span><br>
+cdxgen -t python -o bom.json ./my-python-app<br>
+<br>
+<span class="prompt"># Go module</span><br>
+cdxgen -t go --deep -o bom.json ./my-go-app</code>
+  </div>
+
+  <h3>Vulnerability scanning with Grype</h3>
+  <p>Once you have an SBOM, feeding it to <strong>Grype</strong> gives you a vulnerability report in seconds. Grype queries against a locally cached database aggregated from NVD, GitHub Advisory Database, and ecosystem-specific advisories (npm, Maven Central, PyPI, etc.).</p>
+
+  <div class="code-block">
+    <code><span class="prompt"># Scan an SBOM file directly</span><br>
+grype sbom:sbom.cdx.json<br>
+<br>
+<span class="prompt"># Fail the build on high+ severity (useful in CI)</span><br>
+grype sbom:sbom.cdx.json --fail-on high<br>
+<br>
+<span class="prompt"># Output structured JSON for downstream processing</span><br>
+grype sbom:sbom.cdx.json -o json > vuln-report.json<br>
+<br>
+<span class="prompt"># Scan an image directly (Syft runs internally)</span><br>
+grype myapp:v2.1.0</code>
+  </div>
+  <p><strong>CI gate tip:</strong> Use <span class="inline-code">--fail-on high</span> as a soft gate in pull request checks. Reserve <span class="inline-code">--fail-on medium</span> for release pipelines, where you have time to triage false positives before shipping.</p>
+
+  <h3>CI/CD integration: GitHub Actions end-to-end</h3>
+  <p>Below is a production-grade GitHub Actions workflow that generates an SBOM on every push, scans it for vulnerabilities, uploads the SBOM as a build artifact, and optionally submits it to Dependency-Track for continuous monitoring.</p>
+
+  <div class="code-block">
+    <code><span class="prompt">.github/workflows/sbom.yml</span><br>
+name: SBOM Generation & Scan<br>
+<br>
+on:<br>
+  push:<br>
+    branches: [main, release/*]<br>
+  pull_request:<br>
+<br>
+jobs:<br>
+  sbom:<br>
+    runs-on: ubuntu-latest<br>
+    permissions:<br>
+      contents: read<br>
+      id-token: write   # needed for Cosign/OIDC signing<br>
+    steps:<br>
+      - uses: actions/checkout@v4<br>
+      - name: Generate SBOM (Syft)<br>
+        uses: anchore/sbom-action@v0<br>
+        with:<br>
+          path: .<br>
+          format: cyclonedx-json<br>
+          artifact-name: sbom.cdx.json<br>
+      - name: Scan for vulnerabilities (Grype)<br>
+        uses: anchore/scan-action@v3<br>
+        with:<br>
+          sbom: sbom.cdx.json<br>
+          fail-build: true<br>
+          severity-cutoff: high<br>
+      - name: Upload SBOM to Dependency-Track<br>
+        if: github.ref == 'refs/heads/main'<br>
+        env:<br>
+          DT_URL: ${{ secrets.DEPENDENCYTRACK_URL }}<br>
+          DT_KEY: ${{ secrets.DEPENDENCYTRACK_API_KEY }}<br>
+        run: |<br>
+          curl -s -X POST "$DT_URL/api/v1/bom" \<br>
+            -H "X-Api-Key: $DT_KEY" \<br>
+            -H "Content-Type: multipart/form-data" \<br>
+            -F "autoCreate=true" \<br>
+            -F "projectName=my-app" \<br>
+            -F "projectVersion=${{ github.sha }}" \<br>
+            -F "bom=@sbom.cdx.json"</code>
+  </div>
+
+  <p>The pipeline in plain English: Syft scans the repository and produces a <span class="inline-code">sbom.cdx.json</span>. Grype reads it and exits with a non-zero code if any high-severity CVE is found — breaking the build. On merge to <span class="inline-code">main</span>, the SBOM is shipped to a self-hosted Dependency-Track instance, where it joins the portfolio and gets re-evaluated every time a new advisory is published.</p>
+
+  <!-- second image placeholder (media/image2.png) -->
+  <div class="image-placeholder">
+    <span>📊 PIPELINE VISUAL (media/image2.png)</span><br>
+    <span style="font-size:0.85rem;">[CI flow: commit → Syft → Grype → (if main) Dependency-Track]</span>
+  </div>
+
+  <h3>Continuous monitoring with OWASP Dependency-Track</h3>
+  <p>Generating an SBOM at build time is only half the story. A component that was clean on Tuesday might have a critical CVE published on Wednesday. <strong>OWASP Dependency-Track</strong> solves this by continuously polling vulnerability databases and alerting when any component in your SBOM portfolio becomes affected.</p>
+
+  <p>Spinning up a local instance with Docker Compose takes under five minutes:</p>
+
+  <div class="code-block">
+    <code><span class="prompt">docker-compose.yml --- Dependency-Track</span><br>
+version: '3.8'<br>
+services:<br>
+  dtrack-apiserver:<br>
+    image: dependencytrack/apiserver:4.10<br>
+    environment:<br>
+      - ALPINE_DATABASE_MODE=embedded<br>
+    volumes:<br>
+      - dependency-track:/data<br>
+    ports:<br>
+      - "8080:8080"<br>
+  dtrack-frontend:<br>
+    image: dependencytrack/frontend:4.10<br>
+    environment:<br>
+      - API_BASE_URL=http://localhost:8080<br>
+    ports:<br>
+      - "8081:8080"<br>
+volumes:<br>
+  dependency-track:</code>
+  </div>
+  <p>After running <span class="inline-code">docker compose up -d</span>, navigate to <span class="inline-code">http://localhost:8081</span>. The default credentials are <span class="inline-code">admin / admin</span> — change these immediately. From there, create a project, generate an API key, and start uploading SBOMs via the workflow shown above.</p>
+
+  <h3>Signing and attesting SBOMs with Cosign</h3>
+  <p>Generating an SBOM is only valuable if consumers can trust its integrity. <strong>Cosign</strong>, part of the Sigstore project, lets you sign SBOM files and attach them as attestations to container images — creating a verifiable, tamper-evident chain of custody.</p>
+
+  <div class="code-block">
+    <code><span class="prompt"># Attach SBOM as an attestation to an OCI image</span><br>
+cosign attest \<br>
+  --predicate sbom.cdx.json \<br>
+  --type cyclonedx \<br>
+  ghcr.io/myorg/myapp:v2.1.0<br>
+<br>
+<span class="prompt"># Verify the attestation later (in CI or at deploy time)</span><br>
+cosign verify-attestation \<br>
+  --type cyclonedx \<br>
+  --certificate-identity-regexp ".*github.*" \<br>
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \<br>
+  ghcr.io/myorg/myapp:v2.1.0 \<br>
+  | jq .payload | base64 -d | jq .predicate</code>
+  </div>
+
+  <p><strong>Keyless signing in GitHub Actions:</strong> Cosign's keyless mode uses the GitHub Actions OIDC token as identity proof. No long-lived secrets, no key management headaches. The signature is anchored in the Rekor transparency log — publicly auditable and immutable.</p>
+
+  <h3>Common pitfalls and how to avoid them</h3>
+  <ul>
+    <li><strong>Shallow dependency trees.</strong> Tools that only read top-level manifests (<span class="inline-code">package.json</span>, <span class="inline-code">requirements.txt</span>) miss transitive dependencies. Always use <span class="inline-code">--deep</span> or lockfile-based analysis. Syft's <span class="inline-code">--scope all-layers</span> helps with container images.</li>
+    <li><strong>SBOM drift.</strong> An SBOM generated at build time is a snapshot. If you ship once and never update the SBOM, it will diverge from reality as dependencies are patched or updated. Automate regeneration on every release tag.</li>
+    <li><strong>Version imprecision.</strong> Package managers sometimes resolve version ranges differently across environments. Use lockfiles (<span class="inline-code">package-lock.json</span>, <span class="inline-code">poetry.lock</span>, <span class="inline-code">go.sum</span>) as the source of truth for SBOM generation to guarantee exact version pinning.</li>
+    <li><strong>Ignoring false positives.</strong> Not every CVE reported by Grype is exploitable in your context. Establish a VEX workflow: use <span class="inline-code">cdxgen</span>'s VEX generation or craft <span class="inline-code">openvex</span> documents to formally record "not affected" assessments, and store them alongside your SBOM.</li>
+  </ul>
+
+  <h2>Putting it all together</h2>
+  <p>An effective open source SBOM program does not require a large budget — it requires discipline. The pattern is straightforward: <strong>generate</strong> a precise SBOM from lockfiles at build time (Syft or cdxgen), <strong>scan</strong> it as a CI gate (Grype), <strong>sign</strong> it for integrity (Cosign), <strong>store</strong> it with the release artifact, and <strong>monitor</strong> it continuously against live vulnerability feeds (Dependency-Track).</p>
+
+  <p>Start with one project, one format (CycloneDX), and one tool (Syft). Once the pipeline is reliable, scale it across your portfolio. The marginal cost of adding the second project is close to zero — the heavy lifting is in the first one.</p>
+
+  <p>Supply chain security is not a destination; it is an ongoing practice. An SBOM is the foundation that makes every other practice — vulnerability management, license compliance, incident response — faster and more accurate.</p>
+
+  <hr>
+
+  <div class="footnote-links">
+    <p><strong>Further reading:</strong> NTIA Minimum Elements for a Software Bill of Materials · CISA SBOM-a-Rama resources · OWASP CycloneDX specification · Anchore Syft documentation · OWASP Dependency-Track user guide</p>
+  </div>
+
+  <!-- subtle AppSec footer -->
+  <p style="text-align:center; margin-top: 3rem; color:#8ba0b8; font-size:0.8rem; border-top:1px dashed #cbd5e1; padding-top:2rem;">♢ AppSec edition · open source toolchain in practice ♢</p>
+</div>
+</body>
+</html>
